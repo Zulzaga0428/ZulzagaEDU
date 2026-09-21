@@ -22,6 +22,7 @@ const ROLES = [
   {
     key: "teacher",
     title: "Багш",
+    short: "Нэг удаа бич",
     text: "Даалгавраа нэг удаа бичихэд эцэг эх, сурагч хоёуланд нь очно. Хэн хийснийг тоолохгүй, жагсаалтаар харна.",
     card: "bg-role-teacher",
     dot: "bg-dot-teacher",
@@ -31,6 +32,7 @@ const ROLES = [
   {
     key: "parent",
     title: "Эцэг эх",
+    short: "Хүүхдээ хар",
     text: "Хүүхдийнхээ даалгаврыг өөрийнх нь хуудаснаас харна. Группийн 40 мессеж ухах шаардлагагүй.",
     card: "bg-role-parent",
     dot: "bg-dot-parent",
@@ -40,6 +42,7 @@ const ROLES = [
   {
     key: "student",
     title: "Сурагч",
+    short: "Юу хийхээ мэд",
     text: "Өнөөдөр юу хийхээ хардаг, хийснээ тэмдэглэдэг. Дэвтрийнхээ зургийг илгээнэ.",
     card: "bg-role-student",
     dot: "bg-dot-student",
@@ -60,7 +63,7 @@ export default async function LandingPage() {
         ⚡ Татах шаардлагагүй
       </span>
 
-      <div className="relative mx-auto w-full max-w-3xl px-5 pb-48 pt-16 sm:px-8 sm:pt-20">
+      <div className="relative mx-auto w-full max-w-3xl px-5 pb-40 pt-10 sm:px-8 sm:pb-48 sm:pt-20">
         <header className="flex flex-col items-center text-center">
           <Art
             src="/img/logo.png"
@@ -74,12 +77,12 @@ export default async function LandingPage() {
             <span className="mt-1 block text-brand">EDU</span>
           </h1>
 
-          <p className="mt-5 max-w-[30ch] text-lg leading-relaxed text-ink-soft">
+          <p className="mt-4 max-w-[30ch] text-base sm:mt-5 sm:text-lg leading-relaxed text-ink-soft">
             Даалгавар нэг газраас. Сургууль, багш, эцэг эх, сурагчийг нэг дор холбоно.
           </p>
         </header>
 
-        <div className="mx-auto mt-9 flex w-full max-w-md flex-col gap-4">
+        <div className="mx-auto mt-7 flex w-full max-w-md sm:mt-9 flex-col gap-4">
           <Link
             href="/holboo-barih"
             className="flex h-16 items-center justify-center gap-3 rounded-2xl bg-brand text-xl font-extrabold text-brand-ink shadow-[0_10px_24px_rgba(43,133,246,0.28)] transition-colors hover:bg-brand-strong"
@@ -95,31 +98,46 @@ export default async function LandingPage() {
           </Link>
         </div>
 
-        <section className="mt-14">
+        <section className="mt-10 sm:mt-14">
           <div className="mx-auto flex max-w-lg items-center gap-4">
             <span className="h-px flex-1 bg-line" />
             <h2 className="text-lg font-extrabold text-navy">Хэнд юу өгөх вэ?</h2>
             <span className="h-px flex-1 bg-line" />
           </div>
 
-          <ul className="mt-7 grid gap-5 sm:grid-cols-3">
+          {/*
+            Утсан дээр гурвуулаа НЭГ ЭГНЭЭНД — өмнө нь дээрээс доош өрөгдөж
+            хуудсыг хэт урт болгож байсан. Жижиг дэлгэцэд богино тайлбар,
+            томоос нь бүтэн тайлбар гарна.
+          */}
+          <ul className="mt-6 grid grid-cols-3 gap-2.5 sm:mt-7 sm:gap-5">
             {ROLES.map((r) => (
               <li
                 key={r.key}
-                className={`flex flex-col items-center rounded-3xl ${r.card} px-5 pb-6 pt-6 text-center`}
+                className={`flex flex-col items-center rounded-2xl sm:rounded-3xl ${r.card} px-2 pb-4 pt-4 text-center sm:px-5 sm:pb-6 sm:pt-6`}
               >
-                <div className="mb-4 flex h-32 w-full items-center justify-center rounded-2xl bg-white/70">
-                  <Art src={r.img} fallback={r.emoji} className="h-28 w-auto object-contain" />
+                <div className="mb-2 flex h-16 w-full items-center justify-center rounded-xl bg-white/70 sm:mb-4 sm:h-32 sm:rounded-2xl">
+                  <Art
+                    src={r.img}
+                    fallback={r.emoji}
+                    className="h-14 w-auto object-contain sm:h-28"
+                  />
                 </div>
-                <h3 className="text-lg font-extrabold text-navy">{r.title}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-ink-soft">{r.text}</p>
-                <span aria-hidden className={`mt-5 h-2 w-10 rounded-full ${r.dot}`} />
+                <h3 className="text-sm font-extrabold text-navy sm:text-lg">{r.title}</h3>
+                <p className="mt-1 text-xs leading-snug text-ink-soft sm:hidden">{r.short}</p>
+                <p className="mt-2 hidden text-sm leading-relaxed text-ink-soft sm:block">
+                  {r.text}
+                </p>
+                <span
+                  aria-hidden
+                  className={`mt-3 h-1.5 w-8 rounded-full sm:mt-5 sm:h-2 sm:w-10 ${r.dot}`}
+                />
               </li>
             ))}
           </ul>
         </section>
 
-        <p className="mx-auto mt-16 max-w-[30ch] text-center text-lg font-semibold leading-relaxed text-ink-soft">
+        <p className="mx-auto mt-10 max-w-[30ch] sm:mt-16 text-center text-lg font-semibold leading-relaxed text-ink-soft">
           Жижиг алхам өнөөдөр, том ирээдүй маргааш.
         </p>
       </div>

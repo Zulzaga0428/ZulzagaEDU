@@ -13,9 +13,13 @@ const nunito = Nunito({
 export const metadata: Metadata = {
   title: "Zulzaga EDU",
   description: "Даалгавар нэг газраас — багш, эцэг эх, сурагч нэг дор.",
+  manifest: "/manifest.webmanifest",
+  // iOS дээр «дэлгэцэнд нэмсэн» үед л push ажилладаг тул эдгээр заавал.
+  appleWebApp: { capable: true, title: "Zulzaga", statusBarStyle: "default" },
 };
 
 export const viewport: Viewport = {
+  themeColor: "#2b85f6",
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",

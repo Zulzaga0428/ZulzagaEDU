@@ -5,6 +5,8 @@ import { rolesOf, type Viewer } from "@/server/auth/access";
 import { ROLE_LABEL } from "@/server/auth/roles";
 import { signOut } from "@/app/login/actions";
 import { switchRole } from "@/app/actions";
+import { EnableNotifications } from "@/components/enable-notifications";
+import { publicVapidKey } from "@/server/notify/push";
 
 /**
  * Аппын бүрхүүл — эцэг эх, сурагч, багшид зориулсан утасны өргөнтэй багана.
@@ -68,6 +70,8 @@ export async function AppShell({
           ))}
         </nav>
       )}
+
+      <EnableNotifications vapidKey={publicVapidKey()} />
 
       <main className="mt-6">{children}</main>
     </div>

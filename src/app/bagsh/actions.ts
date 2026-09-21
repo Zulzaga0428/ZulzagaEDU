@@ -3,8 +3,9 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requireViewer } from "@/server/auth/access";
-import { createHomework } from "@/server/homework/service";
+import { createHomework, myClasses } from "@/server/homework/service";
 import { endOfDayUb } from "@/server/homework/time";
+import { notifyNewHomework } from "@/server/notify/push";
 
 export async function createHomeworkAction(formData: FormData): Promise<void> {
   const viewer = await requireViewer();
@@ -20,13 +21,28 @@ export async function createHomeworkAction(formData: FormData): Promise<void> {
   }
 
   // Эрхийг service давхарга өөрөө шалгана — энд зөвхөн хэлбэрийг шалгав.
-  await createHomework(viewer, {
+  const homeworkId = await createHomework(viewer, {
     classId,
     subjectId: typeof subjectId === "string" && subjectId !== "" ? subjectId : null,
     title,
     description: typeof description === "string" ? description : null,
     dueAt: endOfDayUb(dueDate),
   });
+
+  // Мэдэгдэл бүтэхгүй байж болно (зөвшөөрөл өгөөгүй, iPhone дээр дэлгэцэнд
+  // нэмээгүй). Даалгавар аль хэдийн үүссэн тул үүнээс болж уначихгүй.
+  try {
+    const klass = (await myClasses(viewer)).find((c) => c.id === classId);
+    await notifyNewHomework({
+      schoolId: viewer.schoolId,
+      classId,
+      homeworkId,
+      title,
+      className: klass ? `${klass.name} анги` : "Анги",
+    });
+  } catch (err) {
+    console.error("Мэдэгдэл илгээхэд алдаа:", err);
+  }
 
   revalidatePath("/bagsh");
   redirect("/bagsh");
