@@ -1,6 +1,14 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { BookOpen, ClipboardCheck, Plus, TriangleAlert, UserPlus, Users } from "lucide-react";
+import {
+  BookOpen,
+  CalendarDays,
+  ClipboardCheck,
+  Plus,
+  TriangleAlert,
+  UserPlus,
+  Users,
+} from "lucide-react";
 import { getViewer } from "@/server/auth/access";
 import { AppShell } from "@/components/app-shell";
 import { Bar, Card, Empty, FeatureCard, Row, SectionLabel, StatTile } from "@/components/ui";
@@ -124,6 +132,16 @@ export default async function TeacherHome() {
           trailing={<span className="text-ink-faint">›</span>}
           href="/bagsh/urilga"
         />
+        <div className="mt-2">
+          <Row
+            icon={CalendarDays}
+            tint="ягаан"
+            title="Хичээлийн хуваарь"
+            subtitle="Улиралд нэг удаа бөглөнө"
+            trailing={<span className="text-ink-faint">›</span>}
+            href="/bagsh/hovaari"
+          />
+        </div>
       </section>
 
       {all.length > 0 && (

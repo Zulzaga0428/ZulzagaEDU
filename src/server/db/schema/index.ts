@@ -2,6 +2,7 @@ export * from "./enums";
 export * from "./schools";
 export * from "./users";
 export * from "./classes";
+export * from "./lessons";
 export * from "./files";
 export * from "./homework";
 export * from "./invitations";

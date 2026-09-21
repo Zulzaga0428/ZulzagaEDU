@@ -7,6 +7,7 @@ import { childHomework, myChildren } from "@/server/homework/service";
 import type { StudentHomeworkRow } from "@/server/homework/service";
 import { groupByDue, parentHeadline } from "@/server/homework/grouping";
 import { formatDueUb } from "@/server/homework/time";
+import { childWeek, lessonName, nextSchoolDay } from "@/server/schedule/service";
 
 export const dynamic = "force-dynamic";
 
@@ -57,8 +58,11 @@ export default async function ParentHome() {
   const children = await myChildren(viewer);
   const cards = await Promise.all(
     children.map(async (child) => {
-      const items = await childHomework(viewer, child.id);
-      return { child, groups: groupByDue(items) };
+      const [items, week] = await Promise.all([
+        childHomework(viewer, child.id),
+        childWeek(viewer, child.id),
+      ]);
+      return { child, groups: groupByDue(items), nextDay: nextSchoolDay(week) };
     }),
   );
 
@@ -74,7 +78,7 @@ export default async function ParentHome() {
       {cards.length === 0 ? (
         <Empty icon={Users}>Холбогдсон хүүхэд алга байна. Багшаас урилга авна уу.</Empty>
       ) : (
-        cards.map(({ child, groups }) => {
+        cards.map(({ child, groups, nextDay }) => {
           const head = parentHeadline(groups);
           return (
             <section key={child.id} className="space-y-4">
@@ -95,6 +99,28 @@ export default async function ParentHome() {
               <Group label="Хугацаа өнгөрсөн" items={groups.overdue} icon={TriangleAlert} tint="шар" />
               <Group label="Өнөөдөр" items={groups.today} icon={CalendarClock} tint="цэнхэр" />
               <Group label="Дараа" items={groups.upcoming} icon={CalendarClock} tint="саарал" />
+
+              {/* «Маргааш ямар хичээлтэй вэ» — оройн гол асуулт. */}
+              {nextDay && (
+                <section>
+                  <SectionLabel>{nextDay.label} — хичээл</SectionLabel>
+                  <Card>
+                    <ol className="space-y-1.5">
+                      {nextDay.lessons.map((l) => (
+                        <li
+                          key={`${l.dayOfWeek}-${l.period}`}
+                          className="flex items-center gap-3"
+                        >
+                          <span className="w-6 shrink-0 text-center text-sm font-bold text-ink-faint">
+                            {l.period}
+                          </span>
+                          <span className="font-semibold text-ink">{lessonName(l)}</span>
+                        </li>
+                      ))}
+                    </ol>
+                  </Card>
+                </section>
+              )}
 
               {groups.notes.length > 0 && (
                 <section>

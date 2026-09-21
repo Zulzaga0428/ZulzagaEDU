@@ -22,6 +22,13 @@
       "when": 1789960529192,
       "tag": "0002_add_credentials",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1789967140235,
+      "tag": "0003_add_lessons",
+      "breakpoints": true
     }
   ]
 }

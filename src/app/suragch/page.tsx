@@ -11,6 +11,7 @@ import { myHomework } from "@/server/homework/service";
 import type { StudentHomeworkRow } from "@/server/homework/service";
 import { groupByDue, studentHeadline } from "@/server/homework/grouping";
 import { formatDueUb } from "@/server/homework/time";
+import { lessonName, myWeek, nextSchoolDay } from "@/server/schedule/service";
 import { markDoneAction } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -87,6 +88,8 @@ export default async function StudentHome() {
     myHomework(viewer),
   ]);
 
+  const nextDay = nextSchoolDay(await myWeek(viewer));
+
   const g = groupByDue(items);
   const now = g.overdue.length + g.today.length;
   const finished = items.filter((h) => h.status !== "ASSIGNED");
@@ -149,6 +152,25 @@ export default async function StudentHome() {
       )}
 
       {g.totalCount === 0 && <Empty icon={BookOpen}>Даалгавар алга. Амарч байгаарай 🌿</Empty>}
+
+      {/* Даалгавар байхгүй өдөр ч аппыг нээх шалтгаан болно. */}
+      {nextDay && (
+        <section>
+          <SectionLabel>{nextDay.label} — хичээл</SectionLabel>
+          <Card>
+            <ol className="space-y-1.5">
+              {nextDay.lessons.map((l) => (
+                <li key={`${l.dayOfWeek}-${l.period}`} className="flex items-center gap-3">
+                  <span className="w-6 shrink-0 text-center text-sm font-bold text-ink-faint">
+                    {l.period}
+                  </span>
+                  <span className="font-semibold text-ink">{lessonName(l)}</span>
+                </li>
+              ))}
+            </ol>
+          </Card>
+        </section>
+      )}
 
       {finished.length > 0 && (
         <section>

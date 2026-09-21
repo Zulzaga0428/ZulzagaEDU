@@ -41,6 +41,14 @@ import {
 } from "../src/server/invite/service";
 import { childrenOf } from "../src/server/auth/access";
 import { addStudent, resetStudentPin } from "../src/server/students/service";
+import {
+  childWeek,
+  myWeek,
+  nextSchoolDay,
+  saveWeek,
+  teacherWeek,
+} from "../src/server/schedule/service";
+import { schoolSubjects } from "../src/server/homework/service";
 import { hashPin, verifyPin, isWeakPin, generateLoginCode, latinPrefix } from "../src/server/auth/pin";
 import type { StudentHomeworkRow } from "../src/server/homework/service";
 
@@ -463,6 +471,63 @@ async function main() {
   check("кирилл ангийн нэр латин болов", latinPrefix("3А") === "3A", latinPrefix("3А"));
   check("кирилл Б латин B болов", latinPrefix("5Б") === "5B", latinPrefix("5Б"));
   check("код бүхэлдээ латин", /^[A-Z0-9]+-[A-Z0-9]+$/.test(added.loginCode), added.loginCode);
+
+  console.log();
+  console.log("24. Хичээлийн хуваарь");
+  const subs = await schoolSubjects(asTeacher);
+  const saved = await saveWeek(asTeacher, klass.id, [
+    { dayOfWeek: 1, period: 1, subjectId: subs[0].id },
+    { dayOfWeek: 1, period: 2, subjectId: subs[1].id },
+    { dayOfWeek: 3, period: 1, subjectId: subs[0].id },
+    // Буруу утгууд — шүүгдэх ёстой
+    { dayOfWeek: 9, period: 1, subjectId: subs[0].id },
+    { dayOfWeek: 1, period: 99, subjectId: subs[0].id },
+    { dayOfWeek: 2, period: 1, subjectId: null },
+  ]);
+  check("зөвхөн хүчинтэй нүд хадгалагдав", saved === 3, saved + " нүд");
+
+  const week = await teacherWeek(asTeacher, klass.id);
+  check("хуваарь уншигдав", week.length === 3);
+  check("хичээлийн нэр холбогдов", Boolean(week[0].subjectName), week[0].subjectName ?? "—");
+
+  await refuses("өөр ангийн багш хуваарь харах", () => teacherWeek(asTeacher2, klass.id));
+  await refuses("өөр ангийн багш хуваарь хадгалах", () =>
+    saveWeek(asTeacher2, klass.id, [{ dayOfWeek: 1, period: 1, subjectId: subs[0].id }]),
+  );
+
+  // Дахин хадгалахад хуучин нь бүтнээр солигдоно.
+  const again = await saveWeek(asTeacher, klass.id, [
+    { dayOfWeek: 5, period: 1, subjectId: subs[2].id },
+  ]);
+  const replaced = await teacherWeek(asTeacher, klass.id);
+  check("дахин хадгалахад бүтнээр солигдов", again === 1 && replaced.length === 1,
+    replaced.length + " нүд");
+
+  const studentView = await myWeek(s0);
+  check("сурагч өөрийн хуваарийг харав", studentView.length === 1);
+  const parentView = await childWeek(
+    { userId: link.parentId, schoolId: school.id, role: "PARENT" },
+    link.childId,
+  );
+  check("эцэг эх хүүхдийн хуваарийг харав", parentView.length === 1);
+  await refuses("эцэг эх хамаагүй хүүхдийн хуваарь", () =>
+    childWeek({ userId: link.parentId, schoolId: school.id, role: "PARENT" }, notMine),
+  );
+
+  console.log();
+  console.log("25. Дараагийн хичээлтэй өдөр");
+  const cells = [
+    { dayOfWeek: 1, period: 1, subjectId: null, subjectName: "Монгол хэл", customName: null },
+    { dayOfWeek: 3, period: 1, subjectId: null, subjectName: "Математик", customName: null },
+  ];
+  // Даваа гараг → дараагийнх нь Лхагва
+  const fromMon = nextSchoolDay(cells, new Date("2026-09-21T02:00:00Z"));
+  check("Даваагаас Лхагва руу", fromMon?.dayOfWeek === 3, fromMon?.label ?? "—");
+  // Ням гараг → маргааш нь Даваа
+  const fromSun = nextSchoolDay(cells, new Date("2026-09-20T02:00:00Z"));
+  check("Нямаас маргааш Даваа", fromSun?.dayOfWeek === 1 && fromSun.label === "Маргааш",
+    fromSun?.label ?? "—");
+  check("хоосон хуваарьт юу ч буцаахгүй", nextSchoolDay([]) === null);
 
   console.log(`\n${failed === 0 ? "✅" : "❌"} ${passed} зөв, ${failed} алдаа\n`);
   process.exit(failed === 0 ? 0 : 1);
