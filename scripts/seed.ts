@@ -8,6 +8,10 @@
  * үүсгэнэ. Зөвхөн хөгжүүлэлтийн санд ажиллуулна.
  */
 import { eq, sql } from "drizzle-orm";
+import {
+  issueStudentCredentials,
+  setAdultCredentials,
+} from "../src/server/auth/credentials";
 import { db } from "../src/server/db";
 import {
   classMembers,
@@ -15,12 +19,14 @@ import {
   guardians,
   memberships,
   schools,
-  studentCredentials,
+  credentials,
   subjects,
   users,
 } from "../src/server/db/schema";
 
 const SCHOOL_SLUG = "zulzaga";
+/** Хөгжүүлэлтийн PIN. Прод өгөгдөлд хэзээ ч ашиглагдахгүй. */
+const DEV_PIN = "2648";
 const ACADEMIC_YEAR = "2026-2027";
 
 const STUDENT_NAMES = [
@@ -33,17 +39,6 @@ const STUDENT_NAMES = [
 ];
 
 const SUBJECT_NAMES = ["Монгол хэл", "Математик", "Хүн ба орчин", "Англи хэл", "Дүрслэх урлаг", "Хөгжим"];
-
-/** Сурагчийн нэвтрэх код — андуурч уншихгүй тэмдэгт ашиглана (0/O, 1/I алга). */
-const CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-
-function loginCode(classPrefix: string): string {
-  let tail = "";
-  for (let i = 0; i < 4; i++) {
-    tail += CODE_ALPHABET[Math.floor(Math.random() * CODE_ALPHABET.length)];
-  }
-  return `${classPrefix}-${tail}`;
-}
 
 async function main() {
   const existing = await db.select().from(schools).where(eq(schools.slug, SCHOOL_SLUG)).limit(1);
@@ -75,15 +70,15 @@ async function main() {
   // Эрхлэгч ба багш нар — Google-ээр нэвтрэх хүмүүс тул имэйлтэй.
   const [manager] = await db
     .insert(users)
-    .values({ name: "Сүхбаатарын Оюунчимэг", email: "erhlegch@zulzaga.test" })
+    .values({ name: "Сүхбаатарын Оюунчимэг", email: "erhlegch@zulzaga.test", phone: "99110001" })
     .returning();
   const [teacher] = await db
     .insert(users)
-    .values({ name: "Дашдоржийн Сарантуяа", email: "bagsh@zulzaga.test" })
+    .values({ name: "Дашдоржийн Сарантуяа", email: "bagsh@zulzaga.test", phone: "99110002" })
     .returning();
   const [teacher2] = await db
     .insert(users)
-    .values({ name: "Батбаярын Энхтуяа", email: "bagsh2@zulzaga.test" })
+    .values({ name: "Батбаярын Энхтуяа", email: "bagsh2@zulzaga.test", phone: "99110003" })
     .returning();
 
   await db.insert(memberships).values([
@@ -122,15 +117,15 @@ async function main() {
   await db.insert(classMembers).values(
     studentRows.map((s) => ({ classId: class3a.id, userId: s.id, role: "STUDENT" as const })),
   );
-  await db.insert(studentCredentials).values(
-    studentRows.map((s) => ({
-      userId: s.id,
-      loginCode: loginCode("3A"),
-      // Жинхэнэ PIN нь эцэг эх холбогдох үед тавигдана. Одоогоор орлуулагч.
-      pinHash: "SEED_PIN_TAVIGDAAGUI",
-    })),
-  );
-  console.log("Сурагч:", studentRows.length);
+  // Бүх сурагчид нэг PIN — зөвхөн ХӨГЖҮҮЛЭЛТИЙН өгөгдөл учраас.
+  // Жинхэнэ ашиглалтад PIN нь эцэг эх холбогдох үед тус тусдаа тавигдана.
+  const sampleCodes: string[] = [];
+  for (const s of studentRows) {
+    const { loginCode } = await issueStudentCredentials(s.id, "3A", DEV_PIN);
+    if (sampleCodes.length < 3) sampleCodes.push(`${s.name} → ${loginCode}`);
+  }
+  console.log("Сурагч:", studentRows.length, `(PIN: ${DEV_PIN})`);
+  for (const c of sampleCodes) console.log("   ", c);
 
   // Эхний 6 сурагчид эцэг эх холбоно — нэг нь ЭХНИЙ БАГШ ӨӨРӨӨ (хоёр дүртэй хүн).
   const PARENT_NAMES = [
@@ -144,7 +139,11 @@ async function main() {
   const parentRows = await db
     .insert(users)
     .values(
-      PARENT_NAMES.map((name, i) => ({ name, email: `etseg${i + 1}@zulzaga.test` })),
+      PARENT_NAMES.map((name, i) => ({
+        name,
+        email: `etseg${i + 1}@zulzaga.test`,
+        phone: `9911010${i + 1}`,
+      })),
     )
     .returning();
 
@@ -174,7 +173,11 @@ async function main() {
     status: "ACTIVE",
     verifiedBy: manager.id,
   });
+  for (const u of [manager, teacher, teacher2, ...parentRows]) {
+    await setAdultCredentials(u.id, DEV_PIN);
+  }
   console.log("Эцэг эх:", parentRows.length + 1, "(нэг нь багш өөрөө — хоёр дүртэй)");
+  console.log("Насанд хүрэгчид: дугаар 9911000x / 9911010x, PIN", DEV_PIN);
 
   console.log("\n✅ Дууслаа.");
   process.exit(0);

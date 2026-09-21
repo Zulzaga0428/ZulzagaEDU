@@ -19,7 +19,7 @@ import {
 /**
  * Нэг хүн = нэг мөр. Дүр нь `memberships`-д тусдаа байна.
  *
- * ⚠️ Сурагчид имэйл ч, Google данс ч БАЙХГҮЙ — тэд `studentCredentials`-ийн
+ * ⚠️ Сурагчид имэйл ч, Google данс ч БАЙХГҮЙ — тэд `credentials`-ийн
  * код + PIN-ээр нэвтэрнэ. Тиймээс хоёр багана хоёулаа NULL байж болно.
  */
 export const users = pgTable(
@@ -27,6 +27,8 @@ export const users = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     email: text("email"),
+    /** Насанд хүрэгчид үүгээр нэвтэрнэ. Сурагчид NULL. */
+    phone: text("phone"),
     googleSub: text("google_sub"),
     name: text("name").notNull(),
     avatarUrl: text("avatar_url"),
@@ -36,6 +38,9 @@ export const users = pgTable(
     uniqueIndex("users_email_key")
       .on(t.email)
       .where(sql`${t.email} is not null`),
+    uniqueIndex("users_phone_key")
+      .on(t.phone)
+      .where(sql`${t.phone} is not null`),
     uniqueIndex("users_google_sub_key")
       .on(t.googleSub)
       .where(sql`${t.googleSub} is not null`),
@@ -70,17 +75,21 @@ export const memberships = pgTable(
 );
 
 /**
- * Сурагчийн нэвтрэлт. Код нь хэн болохыг, PIN нь баталгааг хэлнэ.
+ * Нэвтрэх баталгаа — бүх дүрд нэг систем.
  *
- * ⚠️ Код богино тул энэ зам rate limit-гүйгээр НЭЭЛТТЭЙ байж болохгүй.
- * `failedAttempts` ба `lockedUntil` нь тоологчийн үүрэгтэй.
+ * Сурагч **кодоороо**, насанд хүрэгч **утасны дугаараараа** танигдаж,
+ * хоёулаа PIN-ээр баталгаажна.
+ *
+ * ⚠️ 4 оронтой PIN нь ердөө 10,000 хувилбар — өөрөө хамгаалалт БИШ.
+ * Жинхэнэ нууц нь нэвтрэх код, жинхэнэ хамгаалалт нь хурдны хязгаар.
+ * Тиймээс `failedAttempts` ба `lockedUntil` нь чимэг биш, шаардлага.
  */
-export const studentCredentials = pgTable("student_credentials", {
+export const credentials = pgTable("credentials", {
   userId: uuid("user_id")
     .primaryKey()
     .references(() => users.id, { onDelete: "cascade" }),
-  /** Уншихад ойлгомжтой, төөрөгдүүлэхгүй тэмдэгттэй: жишээ «3A-K7QM» */
-  loginCode: text("login_code").notNull().unique(),
+  /** Зөвхөн сурагчид. Төөрөгдүүлэхгүй тэмдэгттэй: жишээ «3A-K7QMX2» */
+  loginCode: text("login_code").unique(),
   pinHash: text("pin_hash").notNull(),
   failedAttempts: integer("failed_attempts").notNull().default(0),
   lockedUntil: timestamp("locked_until", { withTimezone: true }),

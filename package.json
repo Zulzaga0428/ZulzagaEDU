@@ -11,7 +11,7 @@
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
     "typecheck": "tsc --noEmit",
-    "db:seed": "tsx --env-file=.env.local scripts/seed.ts",
+    "db:seed": "tsx --conditions=react-server --env-file=.env.local scripts/seed.ts",
     "smoke": "tsx --conditions=react-server --env-file=.env.local scripts/smoke-homework.ts"
   },
   "dependencies": {

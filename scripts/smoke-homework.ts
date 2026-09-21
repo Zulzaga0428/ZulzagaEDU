@@ -8,7 +8,14 @@
  */
 import { and, eq } from "drizzle-orm";
 import { db } from "../src/server/db";
-import { classMembers, classes, guardians, schools, users } from "../src/server/db/schema";
+import {
+  classMembers,
+  classes,
+  credentials as credentialsTable,
+  guardians,
+  schools,
+  users,
+} from "../src/server/db/schema";
 import type { Viewer } from "../src/server/auth/access";
 import {
   checkAllDone,
@@ -24,6 +31,8 @@ import {
 import { endOfDayUb, todayUb, addDaysUb } from "../src/server/homework/time";
 import { groupByDue, parentHeadline, studentHeadline } from "../src/server/homework/grouping";
 import { schoolOverview } from "../src/server/school/overview";
+import { signIn, issueStudentCredentials } from "../src/server/auth/credentials";
+import { hashPin, verifyPin, isWeakPin, generateLoginCode } from "../src/server/auth/pin";
 import type { StudentHomeworkRow } from "../src/server/homework/service";
 
 let passed = 0;
@@ -265,6 +274,67 @@ async function main() {
   await refuses("эцэг эх эрхлэгчийн тоймыг харах", () =>
     schoolOverview({ userId: link.parentId, schoolId: school.id, role: "PARENT" }),
   );
+
+  console.log();
+  console.log("15. PIN ба нэвтрэлт");
+  const h = await hashPin("2648");
+  check("hash нь PIN-ийг агуулаагүй", !h.includes("2648"));
+  check("зөв PIN танигдана", await verifyPin("2648", h));
+  check("буруу PIN татгалзана", !(await verifyPin("2649", h)));
+  check("ижил PIN өөр hash өгнө", (await hashPin("2648")) !== h);
+
+  check("1111 сул гэж үзнэ", isWeakPin("1111"));
+  check("1234 сул гэж үзнэ", isWeakPin("1234"));
+  check("4321 сул гэж үзнэ", isWeakPin("4321"));
+  check("2648 сул биш", !isWeakPin("2648"));
+  check("3 оронтой татгалзана", isWeakPin("264"));
+
+  const code = generateLoginCode("3A");
+  check("код 6 тэмдэгттэй", code.length === "3A-".length + 6, code);
+  check("андуурах тэмдэгт алга", !/[01OIS5]/.test(code.split("-")[1]), code);
+
+  console.log();
+  console.log("16. Нэвтрэх оролдлого");
+  const [stCred] = await db
+    .select({ code: credentialsTable.loginCode })
+    .from(credentialsTable)
+    .where(eq(credentialsTable.userId, students[0].id))
+    .limit(1);
+
+  const good = await signIn(stCred.code!, "2648");
+  check("зөв код + PIN нэвтэрнэ", good.ok && good.userId === students[0].id);
+  if (good.ok) check("сурагч дүрээр орлоо", good.role === "STUDENT", good.role);
+
+  const badPin = await signIn(stCred.code!, "9999");
+  check("буруу PIN татгалзана", !badPin.ok);
+
+  const noSuch = await signIn("3A-XXXXXX", "2648");
+  check(
+    "байхгүй код нь буруу PIN-тэй ИЖИЛ хариу өгнө",
+    !noSuch.ok && !badPin.ok && noSuch.reason === badPin.reason,
+    noSuch.ok ? "?" : noSuch.reason,
+  );
+
+  console.log();
+  console.log("17. Түгжих");
+  const [victim] = await db
+    .select({ code: credentialsTable.loginCode })
+    .from(credentialsTable)
+    .where(eq(credentialsTable.userId, students[1].id))
+    .limit(1);
+
+  let lockedAt = 0;
+  for (let i = 1; i <= 6; i++) {
+    const r = await signIn(victim.code!, "0000");
+    if (!r.ok && r.reason === "ТҮГЖЭЭТЭЙ" && lockedAt === 0) lockedAt = i;
+  }
+  check("5 удаагийн дараа түгжигдэв", lockedAt === 5, lockedAt + " дахь оролдлогод");
+
+  const afterLock = await signIn(victim.code!, "2648");
+  check("түгжээтэй үед ЗӨВ PIN ч орохгүй", !afterLock.ok);
+
+  // Дараагийн ажиллуулалтад саад болохгүйн тулд түгжээг тайлна.
+  await issueStudentCredentials(students[1].id, "3A", "2648");
 
   console.log(`\n${failed === 0 ? "✅" : "❌"} ${passed} зөв, ${failed} алдаа\n`);
   process.exit(failed === 0 ? 0 : 1);

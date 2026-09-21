@@ -8,6 +8,20 @@
       "when": 1789918154599,
       "tag": "0000_mean_beast",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1789960503768,
+      "tag": "0001_drop_student_credentials",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1789960529192,
+      "tag": "0002_add_credentials",
+      "breakpoints": true
     }
   ]
 }
