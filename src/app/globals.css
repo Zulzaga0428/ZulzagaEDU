@@ -1,55 +1,38 @@
 @import "tailwindcss";
 
 /*
- * Өнгөний чиглэл нь Zulzaga-гийн 09-20-ны демо дэлгэцүүдээс:
- * тайван sage ногоон + цөцгий + дулаан улбар шар өргөлт.
- * Боловсролын аппуудын ердийн цэнхэрээс зориуд зайлсхийв.
+ * Нэг өнгөний систем — landing ба апп хоёр адилхан.
+ * Эх нь Zulzaga-гийн 09-21-ний landing загвар: цайвар цэнхэр, цагаан,
+ * navy бичиг.
+ *
+ * Одоогоор ЗӨВХӨН ГЭРЭЛ хувилбар. Харанхуй горим хожим — сургуульд
+ * үзүүлэх нүүр нь тогтвортой байх нь эхний ээлжинд чухал.
  */
 :root {
-  --bg: #f1f4f2;
+  color-scheme: light;
+
+  --bg: #f6faff;
   --surface: #ffffff;
-  --surface-soft: #dfe9e3;
-  --ink: #1b2b27;
-  --ink-soft: #5b6f68;
-  --ink-faint: #8a9b95;
-  --brand: #1e4d45;
+  --surface-soft: #eaf2fe;
+  --ink: #12263f;
+  --ink-soft: #5b7086;
+  --ink-faint: #93a5b8;
+  --navy: #1b3c6e;
+  --brand: #2b85f6;
+  --brand-strong: #1b6fd8;
   --brand-ink: #ffffff;
-  --accent: #d9743f;
-  --line: #d5ded9;
-  --warn-bg: #fdf3e3;
-  --warn-line: #e8cfa4;
-}
+  --accent: #1b3c6e;
+  --line: #dbe6f4;
+  --warn-bg: #fdf6e7;
+  --warn-line: #ecd6a6;
 
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg: #101816;
-    --surface: #18211e;
-    --surface-soft: #1f2b27;
-    --ink: #e8efec;
-    --ink-soft: #a3b5ae;
-    --ink-faint: #74877f;
-    --brand: #4f9384;
-    --brand-ink: #0c1412;
-    --accent: #e8905c;
-    --line: #2a3733;
-    --warn-bg: #2a2418;
-    --warn-line: #4d3f24;
-  }
-}
-
-:root[data-theme="dark"] {
-  --bg: #101816;
-  --surface: #18211e;
-  --surface-soft: #1f2b27;
-  --ink: #e8efec;
-  --ink-soft: #a3b5ae;
-  --ink-faint: #74877f;
-  --brand: #4f9384;
-  --brand-ink: #0c1412;
-  --accent: #e8905c;
-  --line: #2a3733;
-  --warn-bg: #2a2418;
-  --warn-line: #4d3f24;
+  /* Дүрийн өнгө — landing-ийн картууд ба аппын тэмдэглэгээнд */
+  --role-teacher: #e9f2fe;
+  --role-parent: #ecf7ef;
+  --role-student: #f3edfc;
+  --dot-teacher: #2b85f6;
+  --dot-parent: #3fa75c;
+  --dot-student: #8b5cf6;
 }
 
 @theme inline {
@@ -59,12 +42,20 @@
   --color-ink: var(--ink);
   --color-ink-soft: var(--ink-soft);
   --color-ink-faint: var(--ink-faint);
+  --color-navy: var(--navy);
   --color-brand: var(--brand);
+  --color-brand-strong: var(--brand-strong);
   --color-brand-ink: var(--brand-ink);
   --color-accent: var(--accent);
   --color-line: var(--line);
   --color-warn-bg: var(--warn-bg);
   --color-warn-line: var(--warn-line);
+  --color-role-teacher: var(--role-teacher);
+  --color-role-parent: var(--role-parent);
+  --color-role-student: var(--role-student);
+  --color-dot-teacher: var(--dot-teacher);
+  --color-dot-parent: var(--dot-parent);
+  --color-dot-student: var(--dot-student);
   --font-sans: var(--font-nunito), ui-sans-serif, system-ui, sans-serif;
 }
 
@@ -79,9 +70,9 @@ body {
 
 /* Гарын товчлуураар явахад фокус тод харагдана. */
 :focus-visible {
-  outline: 3px solid var(--accent);
-  outline-offset: 2px;
-  border-radius: 10px;
+  outline: 3px solid var(--brand);
+  outline-offset: 3px;
+  border-radius: 12px;
 }
 
 @media (prefers-reduced-motion: reduce) {
