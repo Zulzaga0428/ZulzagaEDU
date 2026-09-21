@@ -529,6 +529,20 @@ async function main() {
     fromSun?.label ?? "—");
   check("хоосон хуваарьт юу ч буцаахгүй", nextSchoolDay([]) === null);
 
+  console.log();
+  console.log("26. Хоёр дүртэй хүний нэвтрэлт");
+  // Сарантуяа багш бөгөөд нэг сурагчийн ээж — seed ингэж үүсгэдэг.
+  const dual = await signIn("99110002", "2648");
+  check(
+    "багш дугаараараа орвол БАГШ дүрээр эхэлнэ",
+    dual.ok && dual.role === "TEACHER",
+    dual.ok ? dual.role : "нэвтэрсэнгүй",
+  );
+
+  const onlyParent = await signIn("99110101", "2648");
+  check("зөвхөн эцэг эх бол эцэг эх хэвээр", onlyParent.ok && onlyParent.role === "PARENT",
+    onlyParent.ok ? onlyParent.role : "нэвтэрсэнгүй");
+
   console.log(`\n${failed === 0 ? "✅" : "❌"} ${passed} зөв, ${failed} алдаа\n`);
   process.exit(failed === 0 ? 0 : 1);
 }

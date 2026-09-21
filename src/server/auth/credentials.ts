@@ -74,8 +74,6 @@ export async function signIn(identifier: string, pin: string): Promise<SignInRes
     return { ok: false, reason: "БУРУУ" };
   }
 
-  // Нэг хүн олон дүртэй байж болно. Хамгийн бага эрхтэйг нь сонгоно —
-  // дүрээ өргөх нь апп доторх ухамсартай үйлдэл байх ёстой.
   const roles = await db
     .select({ schoolId: memberships.schoolId, role: memberships.role })
     .from(memberships)
@@ -83,7 +81,19 @@ export async function signIn(identifier: string, pin: string): Promise<SignInRes
 
   if (roles.length === 0) return { ok: false, reason: "ГИШҮҮНЧЛЭЛГҮЙ" };
 
-  const order: MembershipRole[] = ["STUDENT", "PARENT", "TEACHER", "ACADEMIC_MANAGER"];
+  /**
+   * Нэг хүн олон дүртэй байж болно — тэр сургуульд багшилдаг бөгөөд хүүхэд
+   * нь тэнд сурдаг хүн Монголд байнга тохиолдоно.
+   *
+   * ⚠️ Эхэндээ «хамгийн бага эрхтэйг сонго» гэж бичсэн нь БУРУУ байв: багш
+   * дугаараараа нэвтэрмэгц эцэг эхийн дэлгэц рүү унаж, тэнд үйлдэл огт
+   * байдаггүй тул «апп ажиллахгүй байна» гэж харагддаг байлаа.
+   *
+   * Хүний ҮНДСЭН АЖИЛ нь эхэлнэ. Аюулгүй байдлын алдагдал үүсэхгүй —
+   * бүх эрхийг сервер мөр мөрөөр нь шалгадаг, сесс дэх дүр нь зөвхөн
+   * «аль дэлгэцээс эхлэх вэ» гэдгийг хэлнэ.
+   */
+  const order: MembershipRole[] = ["ACADEMIC_MANAGER", "TEACHER", "PARENT", "STUDENT"];
   const chosen = [...roles].sort(
     (a, b) => order.indexOf(a.role) - order.indexOf(b.role),
   )[0];
