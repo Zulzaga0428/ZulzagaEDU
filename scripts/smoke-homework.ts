@@ -31,6 +31,15 @@ import {
 import { endOfDayUb, todayUb, addDaysUb } from "../src/server/homework/time";
 import { groupByDue, parentHeadline, studentHeadline } from "../src/server/homework/grouping";
 import { schoolOverview } from "../src/server/school/overview";
+import {
+  addTeacher,
+  assignTeacher,
+  createClass,
+  currentAcademicYear,
+  listClasses,
+  listTeachers,
+  unassignTeacher,
+} from "../src/server/school/manage";
 import { signIn, issueStudentCredentials } from "../src/server/auth/credentials";
 import {
   acceptParentInvite,
@@ -542,6 +551,82 @@ async function main() {
   const onlyParent = await signIn("99110101", "2648");
   check("зөвхөн эцэг эх бол эцэг эх хэвээр", onlyParent.ok && onlyParent.role === "PARENT",
     onlyParent.ok ? onlyParent.role : "нэвтэрсэнгүй");
+
+  console.log();
+  console.log("27. Эрхлэгч багш, анги удирдах");
+  const phone = "9977" + String(Date.now()).slice(-4);
+  const newT = await addTeacher(asManager, "  Шинэ   Багшаа  ", phone);
+  check("нэр цэвэрлэгдэв", newT.name === "Шинэ Багшаа", newT.name);
+  check("PIN олгогдов", !isWeakPin(newT.pin), newT.pin);
+
+  const asNewT = await signIn(phone, newT.pin);
+  check("шинэ багш нэвтэрлээ", asNewT.ok && asNewT.role === "TEACHER");
+  if (!asNewT.ok) throw new Error("шинэ багш нэвтэрсэнгүй");
+
+  const tList = await listTeachers(asManager);
+  const me2 = tList.find((t) => t.id === asNewT.userId);
+  check("жагсаалтад гарав", Boolean(me2));
+  check("ангигүй гэж харагдав", me2?.classNames === "", me2?.classNames ?? "?");
+
+  // Ангигүй багш даалгавар өгч ЧАДАХГҮЙ — энэ нь Zulzaga-гийн тулгарсан алдаа.
+  const newTeacherViewer: Viewer = {
+    userId: asNewT.userId,
+    schoolId: school.id,
+    role: "TEACHER",
+  };
+  await refuses("ангигүй багш даалгавар өгөх", () =>
+    createHomework(newTeacherViewer, {
+      classId: klass.id,
+      subjectId: null,
+      title: "Болохгүй",
+      description: null,
+      dueAt: endOfDayUb(addDaysUb(todayUb(), 1)),
+    }),
+  );
+
+  console.log();
+  console.log("28. Ангид хуваарилах");
+  const newClassId = await createClass(asManager, "9Я", 5, currentAcademicYear());
+  await assignTeacher(asManager, newClassId, asNewT.userId);
+
+  const tList2 = await listTeachers(asManager);
+  check("хуваарилсны дараа анги харагдав",
+    tList2.find((t) => t.id === asNewT.userId)?.classNames === "9Я",
+    tList2.find((t) => t.id === asNewT.userId)?.classNames ?? "?");
+
+  // Одоо чадах ёстой.
+  const hwId2 = await createHomework(newTeacherViewer, {
+    classId: newClassId,
+    subjectId: null,
+    title: "Хуваарилсны дараа",
+    description: null,
+    dueAt: endOfDayUb(addDaysUb(todayUb(), 1)),
+  });
+  check("хуваарилсны дараа даалгавар өгч чадав", Boolean(hwId2));
+
+  await unassignTeacher(asManager, newClassId, asNewT.userId);
+  await refuses("хассаны дараа дахин чадахгүй", () =>
+    createHomework(newTeacherViewer, {
+      classId: newClassId,
+      subjectId: null,
+      title: "Дахиж болохгүй",
+      description: null,
+      dueAt: endOfDayUb(addDaysUb(todayUb(), 1)),
+    }),
+  );
+
+  await refuses("багш өөрөө багш нэмэх", () => addTeacher(asTeacher, "Хэн нэгэн", "99001122"));
+  await refuses("багш анги үүсгэх", () =>
+    createClass(asTeacher, "8Ю", 4, currentAcademicYear()),
+  );
+  await refuses("багш багш хуваарилах", () =>
+    assignTeacher(asTeacher, newClassId, asNewT.userId),
+  );
+
+  const cList = await listClasses(asManager);
+  check("ангийн жагсаалтад шинэ анги орсон", cList.some((c) => c.id === newClassId));
+  check("хичээлийн жилийн формат", /^\d{4}-\d{4}$/.test(currentAcademicYear()),
+    currentAcademicYear());
 
   console.log(`\n${failed === 0 ? "✅" : "❌"} ${passed} зөв, ${failed} алдаа\n`);
   process.exit(failed === 0 ? 0 : 1);

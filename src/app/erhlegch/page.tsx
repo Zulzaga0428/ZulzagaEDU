@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 import { getViewer } from "@/server/auth/access";
 import { AppShell } from "@/components/app-shell";
+import { Row, SectionLabel } from "@/components/ui";
+import { GraduationCap } from "lucide-react";
 import { schoolOverview } from "@/server/school/overview";
 
 export const dynamic = "force-dynamic";
@@ -44,6 +46,18 @@ export default async function ManagerHome() {
           </div>
         ))}
       </dl>
+
+      <section>
+        <SectionLabel>Удирдлага</SectionLabel>
+        <Row
+          icon={GraduationCap}
+          tint="ногоон"
+          title="Багш ба анги"
+          subtitle="Багш нэмэх, анги үүсгэх, хуваарилах"
+          trailing={<span className="text-ink-faint">›</span>}
+          href="/erhlegch/bagsh"
+        />
+      </section>
 
       {o.needsSupport.length > 0 && (
         <section>
