@@ -203,3 +203,23 @@ export async function guardianSeesClass(
     .limit(1);
   return Boolean(row);
 }
+
+/**
+ * Энэ хүн тухайн сургуульд ямар дүрүүдтэй вэ.
+ *
+ * Хоёроос дээш байвал апп дотор сэлгүүр гарна — багшилдаг бөгөөд хүүхэд нь
+ * тэнд сурдаг хүн Монголд байнга тохиолдоно (`docs/DECISIONS.md` §12).
+ */
+export async function rolesOf(userId: string, schoolId: string): Promise<MembershipRole[]> {
+  const rows = await db
+    .select({ role: memberships.role })
+    .from(memberships)
+    .where(
+      and(
+        eq(memberships.userId, userId),
+        eq(memberships.schoolId, schoolId),
+        eq(memberships.status, "ACTIVE"),
+      ),
+    );
+  return rows.map((r) => r.role);
+}

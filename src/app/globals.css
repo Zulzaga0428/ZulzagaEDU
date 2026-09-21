@@ -1,26 +1,94 @@
 @import "tailwindcss";
 
+/*
+ * Өнгөний чиглэл нь Zulzaga-гийн 09-20-ны демо дэлгэцүүдээс:
+ * тайван sage ногоон + цөцгий + дулаан улбар шар өргөлт.
+ * Боловсролын аппуудын ердийн цэнхэрээс зориуд зайлсхийв.
+ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --bg: #f1f4f2;
+  --surface: #ffffff;
+  --surface-soft: #dfe9e3;
+  --ink: #1b2b27;
+  --ink-soft: #5b6f68;
+  --ink-faint: #8a9b95;
+  --brand: #1e4d45;
+  --brand-ink: #ffffff;
+  --accent: #d9743f;
+  --line: #d5ded9;
+  --warn-bg: #fdf3e3;
+  --warn-line: #e8cfa4;
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  :root:not([data-theme="light"]) {
+    --bg: #101816;
+    --surface: #18211e;
+    --surface-soft: #1f2b27;
+    --ink: #e8efec;
+    --ink-soft: #a3b5ae;
+    --ink-faint: #74877f;
+    --brand: #4f9384;
+    --brand-ink: #0c1412;
+    --accent: #e8905c;
+    --line: #2a3733;
+    --warn-bg: #2a2418;
+    --warn-line: #4d3f24;
   }
 }
 
+:root[data-theme="dark"] {
+  --bg: #101816;
+  --surface: #18211e;
+  --surface-soft: #1f2b27;
+  --ink: #e8efec;
+  --ink-soft: #a3b5ae;
+  --ink-faint: #74877f;
+  --brand: #4f9384;
+  --brand-ink: #0c1412;
+  --accent: #e8905c;
+  --line: #2a3733;
+  --warn-bg: #2a2418;
+  --warn-line: #4d3f24;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-soft: var(--surface-soft);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-ink-faint: var(--ink-faint);
+  --color-brand: var(--brand);
+  --color-brand-ink: var(--brand-ink);
+  --color-accent: var(--accent);
+  --color-line: var(--line);
+  --color-warn-bg: var(--warn-bg);
+  --color-warn-line: var(--warn-line);
+  --font-sans: var(--font-nunito), ui-sans-serif, system-ui, sans-serif;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+}
+
+/* Гарын товчлуураар явахад фокус тод харагдана. */
+:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 10px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }
