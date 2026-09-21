@@ -22,6 +22,8 @@ import {
   myHomework,
 } from "../src/server/homework/service";
 import { endOfDayUb, todayUb, addDaysUb } from "../src/server/homework/time";
+import { groupForParent, headline } from "../src/server/homework/parent-view";
+import type { StudentHomeworkRow } from "../src/server/homework/service";
 
 let passed = 0;
 let failed = 0;
@@ -179,6 +181,50 @@ async function main() {
   check("даалгавар устав", !afterDelete.some((h) => h.id === hwId));
   const orphan = (await myHomework(s0)).find((h) => h.id === hwId);
   check("сурагчийн мөр цуг устав", orphan === undefined);
+
+  console.log();
+  console.log("13. Эцэг эхийн бүлэглэлт (цэвэр логик)");
+  const mk = (
+    id: string,
+    day: string,
+    status: StudentHomeworkRow["status"],
+    note: string | null = null,
+    checkedAt: Date | null = null,
+  ): StudentHomeworkRow => ({
+    id,
+    title: id,
+    description: null,
+    subject: null,
+    dueAt: endOfDayUb(day),
+    status,
+    teacherNote: note,
+    checkedAt,
+  });
+
+  const t = todayUb();
+  const ystd = addDaysUb(t, -1);
+  const tmrw = addDaysUb(t, 1);
+
+  const g = groupForParent([
+    mk("хоцорсон", ystd, "ASSIGNED"),
+    mk("өнөөдөр", t, "ASSIGNED"),
+    mk("маргааш", tmrw, "ASSIGNED"),
+    mk("хийсэн", ystd, "DONE"),
+    mk("шалгасан", ystd, "CHECKED", "Сайн", new Date(1)),
+    mk("тэмдэглэлгүй", ystd, "CHECKED", null, new Date(2)),
+  ]);
+
+  check("хоцорсон нь тусдаа", g.overdue.length === 1 && g.overdue[0].id === "хоцорсон");
+  check("өнөөдрийнх нь тусдаа", g.today.length === 1 && g.today[0].id === "өнөөдөр");
+  check("ирээдүйнх нь тусдаа", g.upcoming.length === 1 && g.upcoming[0].id === "маргааш");
+  check("хийсэн нь хүлээгдэж буйд ОРООГҮЙ", g.pendingCount === 3, g.pendingCount + " мөр");
+  check("тэмдэглэлгүй шалгалт хасагдав", g.notes.length === 1 && g.notes[0].id === "шалгасан");
+  check("тоолол зөв", g.totalCount === 6 && g.doneCount === 3);
+
+  check("хоцорсон бол анхааруулна", headline(g).tone === "анхаар");
+  const allDone = groupForParent([mk("а", ystd, "CHECKED")]);
+  check("бүгд хийгдсэн бол тайван", headline(allDone).tone === "сайн");
+  check("хоосон бол хоосон гэнэ", headline(groupForParent([])).tone === "хоосон");
 
   console.log(`\n${failed === 0 ? "✅" : "❌"} ${passed} зөв, ${failed} алдаа\n`);
   process.exit(failed === 0 ? 0 : 1);

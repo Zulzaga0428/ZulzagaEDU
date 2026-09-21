@@ -184,6 +184,7 @@ export type StudentHomeworkRow = {
   dueAt: Date;
   status: "ASSIGNED" | "DONE" | "CHECKED";
   teacherNote: string | null;
+  checkedAt: Date | null;
 };
 
 async function homeworkForStudent(studentUserId: string, schoolId: string) {
@@ -196,6 +197,7 @@ async function homeworkForStudent(studentUserId: string, schoolId: string) {
       dueAt: homework.dueAt,
       status: homeworkSubmissions.status,
       teacherNote: homeworkSubmissions.teacherNote,
+      checkedAt: homeworkSubmissions.checkedAt,
     })
     .from(homeworkSubmissions)
     .innerJoin(homework, eq(homework.id, homeworkSubmissions.homeworkId))
