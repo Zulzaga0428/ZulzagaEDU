@@ -363,10 +363,19 @@ export async function schoolSubjects(viewer: Viewer) {
     .orderBy(asc(subjects.sortOrder));
 }
 
-/** Багшийн заадаг ангиуд. */
+/** Багшийн заадаг ангиуд, сурагчийн тоотой. */
 export async function myClasses(viewer: Viewer) {
   return db
-    .select({ id: classes.id, name: classes.name, grade: classes.grade })
+    .select({
+      id: classes.id,
+      name: classes.name,
+      grade: classes.grade,
+      students: sql<number>`(
+        select count(*)::int from class_members cm
+        where cm.class_id = classes.id
+          and cm.role = 'STUDENT' and cm.status = 'ACTIVE'
+      )`,
+    })
     .from(classes)
     .innerJoin(classMembers, eq(classMembers.classId, classes.id))
     .where(

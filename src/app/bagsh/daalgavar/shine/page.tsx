@@ -30,14 +30,17 @@ export default async function NewHomeworkPage() {
   const tomorrow = addDaysUb(todayUb(), 1);
 
   return (
-    <AppShell viewer={viewer}>
+    <AppShell
+      viewer={viewer}
+      eyebrow="Багшийн орон зай"
+      title="Даалгавар өгөх"
+      subtitle="Илгээмэгц ангийн бүх сурагч, эцэг эхэд харагдана."
+    >
       <Link href="/bagsh" className="text-sm font-bold text-brand hover:underline">
         ← Буцах
       </Link>
 
-      <h1 className="mt-4 text-2xl font-extrabold text-navy">Даалгавар өгөх</h1>
-
-      <form action={createHomeworkAction} className="mt-6 space-y-5">
+      <form action={createHomeworkAction} className="space-y-5">
         {classList.length === 1 ? (
           <input type="hidden" name="classId" value={classList[0].id} />
         ) : (

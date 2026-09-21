@@ -31,15 +31,17 @@ export default async function HomeworkRosterPage({ params }: PageProps<"/bagsh/d
   const checked = rows.filter((r) => r.status === "CHECKED");
 
   return (
-    <AppShell viewer={viewer}>
+    <AppShell
+      viewer={viewer}
+      eyebrow="Даалгавар"
+      title={title}
+      subtitle={`${formatDueUb(dueAt)} хүртэл`}
+    >
       <Link href="/bagsh" className="text-sm font-bold text-brand hover:underline">
         ← Буцах
       </Link>
 
-      <h1 className="mt-4 text-2xl font-extrabold text-navy">{title}</h1>
-      <p className="mt-1 text-sm text-ink-faint">{formatDueUb(dueAt)} хүртэл</p>
-
-      <p className="mt-5 rounded-2xl bg-surface-soft px-5 py-4 text-center">
+      <p className="rounded-3xl bg-surface-soft px-5 py-4 text-center">
         <span className="text-3xl font-extrabold text-brand">
           {rows.length - pending.length}/{rows.length}
         </span>
@@ -47,7 +49,7 @@ export default async function HomeworkRosterPage({ params }: PageProps<"/bagsh/d
       </p>
 
       {pending.length > 0 && (
-        <section className="mt-7">
+        <section>
           <h2 className="text-xs font-bold uppercase tracking-wider text-ink-faint">
             Хийгээгүй · {pending.length}
           </h2>
@@ -62,7 +64,7 @@ export default async function HomeworkRosterPage({ params }: PageProps<"/bagsh/d
       )}
 
       {toCheck.length > 0 && (
-        <section className="mt-7">
+        <section>
           <div className="flex items-center justify-between gap-3">
             <h2 className="text-xs font-bold uppercase tracking-wider text-ink-faint">
               Шалгах · {toCheck.length}
@@ -109,7 +111,7 @@ export default async function HomeworkRosterPage({ params }: PageProps<"/bagsh/d
       )}
 
       {checked.length > 0 && (
-        <section className="mt-7">
+        <section>
           <h2 className="text-xs font-bold uppercase tracking-wider text-ink-faint">
             Шалгасан · {checked.length}
           </h2>
@@ -132,12 +134,12 @@ export default async function HomeworkRosterPage({ params }: PageProps<"/bagsh/d
       )}
 
       {rows.length === 0 && (
-        <p className="mt-7 rounded-2xl border border-dashed border-line px-4 py-8 text-center text-ink-soft">
+        <p className="rounded-2xl border border-dashed border-line px-4 py-8 text-center text-ink-soft">
           Энэ ангид сурагч алга байна.
         </p>
       )}
 
-      <form action={deleteHomeworkAction} className="mt-10 border-t border-line pt-5">
+      <form action={deleteHomeworkAction} className="border-t border-line pt-5">
         <input type="hidden" name="homeworkId" value={id} />
         <button
           type="submit"

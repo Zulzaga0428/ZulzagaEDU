@@ -26,10 +26,14 @@ export default async function ManagerHome() {
   ];
 
   return (
-    <AppShell viewer={viewer} wide>
-      <h1 className="text-2xl font-extrabold text-navy">Сургуулийн тойм</h1>
-
-      <dl className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+    <AppShell
+      viewer={viewer}
+      eyebrow="Эрхлэгчийн орон зай"
+      title="Сургуулийн тойм"
+      subtitle="Аль ангид дэмжлэг хэрэгтэйг долоо хоног бүр харна."
+      wide
+    >
+      <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {stats.map((s) => (
           <div key={s.label} className="rounded-2xl border border-line bg-surface px-4 py-4">
             <dt className="text-xs font-bold uppercase tracking-wider text-ink-faint">
@@ -42,7 +46,7 @@ export default async function ManagerHome() {
       </dl>
 
       {o.needsSupport.length > 0 && (
-        <section className="mt-8">
+        <section>
           <h2 className="text-xs font-bold uppercase tracking-wider text-accent">
             Дэмжлэг хэрэгтэй · {o.needsSupport.length}
           </h2>
@@ -63,7 +67,7 @@ export default async function ManagerHome() {
         </section>
       )}
 
-      <h2 className="mt-8 text-xs font-bold uppercase tracking-wider text-ink-faint">Ангиуд</h2>
+      <h2 className="text-xs font-bold uppercase tracking-wider text-ink-faint">Ангиуд</h2>
       {o.classes.length === 0 ? (
         <p className="mt-2 rounded-2xl border border-dashed border-line px-4 py-8 text-center text-ink-soft">
           Анги үүсгээгүй байна.

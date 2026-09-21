@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
+import { CalendarClock, CircleCheck, MessageSquareText, TriangleAlert, Users } from "lucide-react";
 import { getViewer } from "@/server/auth/access";
 import { AppShell } from "@/components/app-shell";
+import { Card, Empty, FeatureCard, IconBox, Row, SectionLabel } from "@/components/ui";
 import { childHomework, myChildren } from "@/server/homework/service";
 import type { StudentHomeworkRow } from "@/server/homework/service";
 import { groupByDue, parentHeadline } from "@/server/homework/grouping";
@@ -11,49 +13,37 @@ export const dynamic = "force-dynamic";
 /**
  * Эцэг эхийн нүүр — «оройн 30 секунд».
  *
- * Бүх даалгаврыг нэг жагсаалтаар цутгахгүй. Дээд талд нэг өгүүлбэр, дараа
- * нь анхаарах зүйл, дараа нь хийх зүйл, доор нь багшийн тэмдэглэл.
+ * Хүүхэд бүрд нэг өгүүлбэр, дараа нь анхаарах зүйл, дараа нь хийх зүйл,
+ * доор нь багшийн тэмдэглэл. Бүх даалгаврыг нэг жагсаалтаар цутгахгүй.
  */
-
-function Item({ h }: { h: StudentHomeworkRow }) {
-  return (
-    <li className="px-4 py-3">
-      <p className="truncate font-bold text-ink">{h.title}</p>
-      <p className="text-xs text-ink-faint">
-        {h.subject ?? "Хичээл"} · {formatDueUb(h.dueAt)} хүртэл
-      </p>
-    </li>
-  );
-}
-
 function Group({
   label,
   items,
-  tone = "энгийн",
+  icon,
+  tint,
 }: {
   label: string;
   items: StudentHomeworkRow[];
-  tone?: "энгийн" | "анхаар";
+  icon: typeof CalendarClock;
+  tint: "шар" | "цэнхэр" | "саарал";
 }) {
   if (items.length === 0) return null;
   return (
-    <section className="mt-4">
-      <h3
-        className={`text-xs font-bold uppercase tracking-wider ${
-          tone === "анхаар" ? "text-accent" : "text-ink-faint"
-        }`}
-      >
+    <section>
+      <SectionLabel>
         {label} · {items.length}
-      </h3>
-      <ul
-        className={`mt-1.5 divide-y divide-line overflow-hidden rounded-2xl border bg-surface ${
-          tone === "анхаар" ? "border-warn-line" : "border-line"
-        }`}
-      >
+      </SectionLabel>
+      <div className="space-y-2">
         {items.map((h) => (
-          <Item key={h.id} h={h} />
+          <Row
+            key={h.id}
+            icon={icon}
+            tint={tint}
+            title={h.title}
+            subtitle={`${h.subject ?? "Хичээл"} · ${formatDueUb(h.dueAt)} хүртэл`}
+          />
         ))}
-      </ul>
+      </div>
     </section>
   );
 }
@@ -72,61 +62,58 @@ export default async function ParentHome() {
     }),
   );
 
+  const attention = cards.filter((c) => parentHeadline(c.groups).tone === "анхаар").length;
+
   return (
-    <AppShell viewer={viewer}>
+    <AppShell
+      viewer={viewer}
+      eyebrow="Эцэг эхийн орон зай"
+      title={attention > 0 ? "Өнөөдөр анхаарах зүйл байна" : "Бүх зүйл хэвийн"}
+      subtitle="Хүүхдийнхээ өнөөдрийг 30 секундэд."
+    >
       {cards.length === 0 ? (
-        <p className="rounded-2xl border border-dashed border-line px-4 py-8 text-center text-ink-soft">
-          Холбогдсон хүүхэд алга байна. Багшаас урилга авна уу.
-        </p>
+        <Empty icon={Users}>Холбогдсон хүүхэд алга байна. Багшаас урилга авна уу.</Empty>
       ) : (
         cards.map(({ child, groups }) => {
           const head = parentHeadline(groups);
           return (
-            <section key={child.id} className="mb-10">
-              <div className="flex items-baseline justify-between gap-3">
-                <h2 className="text-xl font-extrabold text-navy">{child.name}</h2>
-                <span className="shrink-0 text-xs text-ink-faint">
-                  {child.className ? `${child.className} анги` : "Ангид ороогүй"}
-                </span>
-              </div>
-
-              {/* Ганц өгүүлбэр. Эцэг эх үүнийг уншаад цааш үзэх эсэхээ шийднэ. */}
-              <p
-                className={`mt-2 rounded-2xl px-5 py-4 text-center text-lg font-extrabold ${
-                  head.tone === "анхаар"
-                    ? "border border-warn-line bg-warn-bg text-ink"
-                    : "bg-surface-soft text-ink"
-                }`}
+            <section key={child.id} className="space-y-4">
+              <FeatureCard
+                icon={head.tone === "анхаар" ? TriangleAlert : CircleCheck}
+                tint={head.tone === "анхаар" ? "шар" : "ногоон"}
+                eyebrow={child.className ? `${child.className} анги` : "Ангид ороогүй"}
+                title={child.name}
               >
                 {head.text}
-              </p>
+                {groups.totalCount > 0 && (
+                  <span className="mt-1 block text-xs text-ink-faint">
+                    Нийт {groups.totalCount} даалгавраас {groups.doneCount} нь хийгдсэн
+                  </span>
+                )}
+              </FeatureCard>
 
-              {groups.totalCount > 0 && (
-                <p className="mt-1.5 text-center text-xs text-ink-faint">
-                  Нийт {groups.totalCount} даалгавраас {groups.doneCount} нь хийгдсэн
-                </p>
-              )}
-
-              <Group label="Хугацаа өнгөрсөн" items={groups.overdue} tone="анхаар" />
-              <Group label="Өнөөдөр" items={groups.today} tone="анхаар" />
-              <Group label="Дараа" items={groups.upcoming} />
+              <Group label="Хугацаа өнгөрсөн" items={groups.overdue} icon={TriangleAlert} tint="шар" />
+              <Group label="Өнөөдөр" items={groups.today} icon={CalendarClock} tint="цэнхэр" />
+              <Group label="Дараа" items={groups.upcoming} icon={CalendarClock} tint="саарал" />
 
               {groups.notes.length > 0 && (
-                <section className="mt-4">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-ink-faint">
-                    Багшийн тэмдэглэл
-                  </h3>
-                  <ul className="mt-1.5 space-y-2">
+                <section>
+                  <SectionLabel>Багшийн тэмдэглэл</SectionLabel>
+                  <div className="space-y-2">
                     {groups.notes.map((h) => (
-                      <li
-                        key={h.id}
-                        className="rounded-2xl border border-line bg-surface px-4 py-3"
-                      >
-                        <p className="text-xs text-ink-faint">{h.title}</p>
-                        <p className="mt-0.5 text-sm font-semibold text-ink">{h.teacherNote}</p>
-                      </li>
+                      <Card key={h.id}>
+                        <div className="flex items-start gap-3">
+                          <IconBox icon={MessageSquareText} tint="ногоон" />
+                          <div className="min-w-0">
+                            <p className="text-xs text-ink-faint">{h.title}</p>
+                            <p className="mt-0.5 text-sm font-semibold text-ink">
+                              {h.teacherNote}
+                            </p>
+                          </div>
+                        </div>
+                      </Card>
                     ))}
-                  </ul>
+                  </div>
                 </section>
               )}
             </section>

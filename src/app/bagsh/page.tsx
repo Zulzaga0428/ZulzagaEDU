@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { BookOpen, ClipboardCheck, Plus, TriangleAlert, Users } from "lucide-react";
 import { getViewer } from "@/server/auth/access";
 import { AppShell } from "@/components/app-shell";
+import { Bar, Card, Empty, FeatureCard, Row, SectionLabel, StatTile } from "@/components/ui";
 import { listClassHomework, myClasses } from "@/server/homework/service";
 import { formatDueUb, isOverdue } from "@/server/homework/time";
 
@@ -17,78 +19,124 @@ export default async function TeacherHome() {
     classList.map(async (c) => ({ klass: c, items: await listClassHomework(viewer, c.id) })),
   );
 
-  return (
-    <AppShell viewer={viewer}>
-      <h1 className="text-2xl font-extrabold text-navy">Сайн байна уу, багш аа</h1>
+  const all = perClass.flatMap((p) => p.items);
+  const waiting = all.filter((h) => h.done > 0 && h.done < h.total).length;
+  const needsAttention = all.filter((h) => isOverdue(h.dueAt) && h.done < h.total);
 
-      {/*
-        Багшийн өдөр бүр хийдэг ганц үйлдэл. Дэлгэцийн хамгийн том, хамгийн
-        дээд зүйл байх ёстой — дунд нь жижиг чип болж суух ёсгүй.
-      */}
+  return (
+    <AppShell
+      viewer={viewer}
+      eyebrow="Багшийн орон зай"
+      title="Сайн байна уу, багш аа"
+      subtitle="Хүүхэд бүрийн жижиг ахицыг хамтдаа анзаарая."
+    >
       {classList.length > 0 && (
-        <Link
-          href="/bagsh/daalgavar/shine"
-          className="mt-5 flex w-full items-center justify-center gap-2 rounded-2xl bg-brand px-4 py-5 text-lg font-extrabold text-brand-ink shadow-[0_10px_24px_rgba(43,133,246,0.28)] hover:bg-brand-strong"
-        >
-          ➕ Даалгавар өгөх
-        </Link>
+        <>
+          {/* Багшийн өдөр бүр хийдэг ганц үйлдэл — хамгийн дээд, хамгийн том. */}
+          <Link
+            href="/bagsh/daalgavar/shine"
+            className="flex w-full items-center justify-center gap-2 rounded-3xl bg-brand px-4 py-5 text-lg font-extrabold text-brand-ink shadow-[0_10px_24px_rgba(43,133,246,0.28)] hover:bg-brand-strong"
+          >
+            <Plus className="h-5 w-5" strokeWidth={3} />
+            Даалгавар өгөх
+          </Link>
+
+          <div className="grid grid-cols-3 gap-2.5">
+            <StatTile value={classList.reduce((n, c) => n + c.students, 0)} label="Сурагч" />
+            <StatTile value={all.length} label="Даалгавар" />
+            <StatTile value={waiting} label="Шалгах" tone="онцлох" />
+          </div>
+        </>
+      )}
+
+      {needsAttention.length > 0 && (
+        <section>
+          <SectionLabel>Анхаарах зүйл</SectionLabel>
+          <div className="space-y-2">
+            {needsAttention.map((h) => (
+              <Row
+                key={h.id}
+                icon={TriangleAlert}
+                tint="шар"
+                title={h.title}
+                subtitle={`${h.total - h.done} сурагч хийгээгүй байна`}
+                trailing={<span className="text-ink-faint">›</span>}
+                href={`/bagsh/daalgavar/${h.id}`}
+              />
+            ))}
+          </div>
+        </section>
       )}
 
       {perClass.length === 0 ? (
-        <p className="mt-6 rounded-2xl border border-dashed border-line px-4 py-8 text-center text-ink-soft">
-          Танд хариуцсан анги алга байна.
-        </p>
+        <Empty icon={Users}>Танд хариуцсан анги алга байна.</Empty>
       ) : (
         perClass.map(({ klass, items }) => (
-          <section key={klass.id} className="mt-8">
-            <div className="flex items-baseline justify-between">
-              <h2 className="text-lg font-extrabold text-ink">{klass.name} анги</h2>
-              <span className="text-xs text-ink-faint">{klass.grade}-р анги</span>
-            </div>
+          <section key={klass.id}>
+            <SectionLabel>
+              {klass.name} анги · {klass.grade}-р анги
+            </SectionLabel>
 
             {items.length === 0 ? (
-              <p className="mt-3 rounded-2xl border border-dashed border-line px-4 py-8 text-center text-ink-soft">
-                Одоогоор даалгавар өгөөгүй байна.
-              </p>
+              <Empty icon={BookOpen}>Одоогоор даалгавар өгөөгүй байна.</Empty>
             ) : (
-              <ul className="mt-3 space-y-3">
+              <div className="space-y-2.5">
                 {items.map((h) => {
                   const pct = h.total === 0 ? 0 : Math.round((h.done / h.total) * 100);
                   const late = isOverdue(h.dueAt) && h.done < h.total;
                   return (
-                    <li key={h.id}>
-                      <Link
-                        href={`/bagsh/daalgavar/${h.id}`}
-                        className="block rounded-2xl border border-line bg-surface px-4 py-4 hover:border-brand"
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <p className="truncate font-extrabold text-ink">{h.title}</p>
-                            <p className="text-xs text-ink-faint">
+                    <Link key={h.id} href={`/bagsh/daalgavar/${h.id}`} className="block">
+                      <Card className="transition-colors hover:border-brand">
+                        <div className="flex items-start gap-3">
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate font-extrabold text-ink">
+                              {h.title}
+                            </span>
+                            <span className="block text-xs text-ink-faint">
                               {h.subject ?? "Хичээл заагаагүй"} · {formatDueUb(h.dueAt)}
                               {late && <span className="text-accent"> · хугацаа өнгөрсөн</span>}
-                            </p>
-                          </div>
+                            </span>
+                          </span>
                           <span className="shrink-0 text-lg font-extrabold text-brand">
                             {h.done}/{h.total}
                           </span>
                         </div>
-
-                        <div
-                          className="mt-3 h-2 w-full overflow-hidden rounded-full bg-surface-soft"
-                          role="img"
-                          aria-label={`${h.total} сурагчийн ${h.done} нь хийсэн`}
-                        >
-                          <div className="h-full rounded-full bg-brand" style={{ width: `${pct}%` }} />
+                        <div className="mt-3">
+                          <Bar percent={pct} label={`${h.total} сурагчийн ${h.done} нь хийсэн`} />
                         </div>
-                      </Link>
-                    </li>
+                      </Card>
+                    </Link>
                   );
                 })}
-              </ul>
+              </div>
             )}
           </section>
         ))
+      )}
+
+      {all.length > 0 && (
+        <section>
+          <SectionLabel>Өнөөдрийн ажил</SectionLabel>
+          <Row
+            icon={ClipboardCheck}
+            tint="цэнхэр"
+            title="Даалгавар шалгах"
+            subtitle={
+              waiting > 0 ? `${waiting} даалгаварт хүлээгдэж байна` : "Хүлээгдэж байгаа зүйл алга"
+            }
+            trailing={
+              <span className="rounded-full bg-surface-soft px-2.5 py-0.5 text-sm font-bold text-brand">
+                {waiting}
+              </span>
+            }
+          />
+        </section>
+      )}
+
+      {classList.length > 0 && (
+        <FeatureCard icon={Users} tint="ногоон" eyebrow="Энэ долоо хоногт" title="Ангидаа тавтай морил">
+          {classList.map((c) => c.name).join(", ")} ангийн сурагчид таны даалгаврыг хүлээж байна.
+        </FeatureCard>
       )}
     </AppShell>
   );
