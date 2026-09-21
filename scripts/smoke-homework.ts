@@ -32,6 +32,14 @@ import { endOfDayUb, todayUb, addDaysUb } from "../src/server/homework/time";
 import { groupByDue, parentHeadline, studentHeadline } from "../src/server/homework/grouping";
 import { schoolOverview } from "../src/server/school/overview";
 import { signIn, issueStudentCredentials } from "../src/server/auth/credentials";
+import {
+  acceptParentInvite,
+  createParentInvite,
+  decideGuardian,
+  pendingGuardians,
+  readInvite,
+} from "../src/server/invite/service";
+import { childrenOf } from "../src/server/auth/access";
 import { hashPin, verifyPin, isWeakPin, generateLoginCode } from "../src/server/auth/pin";
 import type { StudentHomeworkRow } from "../src/server/homework/service";
 
@@ -335,6 +343,78 @@ async function main() {
 
   // Дараагийн ажиллуулалтад саад болохгүйн тулд түгжээг тайлна.
   await issueStudentCredentials(students[1].id, "3A", "2648");
+
+  console.log();
+  console.log("18. Урилга үүсгэх");
+  const target = students[students.length - 1];
+  const inv = await createParentInvite(asTeacher, klass.id, target.id);
+  check("багш урилга гаргав", inv.token.length > 20);
+  await refuses("өөр ангийн багш урилга гаргах", () =>
+    createParentInvite(asTeacher2, klass.id, target.id),
+  );
+
+  const view = await readInvite(inv.token);
+  check("урилга зөв сурагчийг заав", view?.studentUserId === target.id);
+  check("хуурамч токен таарахгүй", (await readInvite("xxxx")) === null);
+
+  console.log();
+  console.log("19. Эцэг эх нэгдэх");
+  const newPhone = "9955" + String(Date.now()).slice(-4);
+  const acc = await acceptParentInvite(inv.token, {
+    name: "Тестийн Эцэг",
+    phone: newPhone,
+    pin: "7382",
+    relation: "FATHER",
+  });
+  check("урилга хүлээн авагдав", acc.ok);
+  if (!acc.ok) throw new Error("урилга хүлээн авагдсангүй");
+
+  const newParent: Viewer = { userId: acc.userId, schoolId: school.id, role: "PARENT" };
+  const kidsBefore = await childrenOf(acc.userId);
+  check("ХҮЛЭЭГДЭЖ буй үед хүүхэд харагдахгүй", kidsBefore.length === 0,
+    kidsBefore.length + " хүүхэд");
+  await refuses("батлагдаагүй эцэг эх даалгавар харах", () =>
+    childHomework(newParent, target.id),
+  );
+
+  console.log();
+  console.log("20. Багш батлах");
+  const waiting = await pendingGuardians(asTeacher, klass.id);
+  const mine = waiting.find((w) => w.studentName === target.name);
+  check("багшийн жагсаалтад гарав", Boolean(mine));
+  await refuses("өөр багш батлах", () => decideGuardian(asTeacher2, mine!.id, "ACTIVE"));
+
+  await decideGuardian(asTeacher, mine!.id, "ACTIVE");
+  const kidsAfter = await childrenOf(acc.userId);
+  check("батласны дараа хүүхэд харагдав", kidsAfter.includes(target.id));
+  const seenHw = await childHomework(newParent, target.id);
+  check("батласны дараа даалгавар харагдав", Array.isArray(seenHw));
+
+  console.log();
+  console.log("21. Урилгын хязгаар");
+  const dup = await acceptParentInvite(inv.token, {
+    name: "Тестийн Эцэг",
+    phone: newPhone,
+    pin: "7382",
+    relation: "FATHER",
+  });
+  check("нэг хүн хоёр удаа холбогдохгүй", !dup.ok && dup.reason === "АЛЬ_ХЭДИЙН");
+
+  const wrongPin = await acceptParentInvite(inv.token, {
+    name: "Хэн нэгэн",
+    phone: newPhone,
+    pin: "1357",
+    relation: "MOTHER",
+  });
+  check("байгаа дугаарт буруу PIN татгалзана", !wrongPin.ok && wrongPin.reason === "PIN_БУРУУ");
+
+  const weak = await acceptParentInvite(inv.token, {
+    name: "Шинэ хүн",
+    phone: "99009900",
+    pin: "1111",
+    relation: "MOTHER",
+  });
+  check("сул PIN татгалзана", !weak.ok && weak.reason === "PIN_СУЛ");
 
   console.log(`\n${failed === 0 ? "✅" : "❌"} ${passed} зөв, ${failed} алдаа\n`);
   process.exit(failed === 0 ? 0 : 1);

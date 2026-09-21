@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { BookOpen, ClipboardCheck, Plus, TriangleAlert, Users } from "lucide-react";
+import { BookOpen, ClipboardCheck, Plus, TriangleAlert, UserPlus, Users } from "lucide-react";
 import { getViewer } from "@/server/auth/access";
 import { AppShell } from "@/components/app-shell";
 import { Bar, Card, Empty, FeatureCard, Row, SectionLabel, StatTile } from "@/components/ui";
@@ -113,6 +113,18 @@ export default async function TeacherHome() {
           </section>
         ))
       )}
+
+      <section>
+        <SectionLabel>Анги</SectionLabel>
+        <Row
+          icon={UserPlus}
+          tint="ногоон"
+          title="Сурагч ба эцэг эх"
+          subtitle="QR гаргах, хүсэлт батлах"
+          trailing={<span className="text-ink-faint">›</span>}
+          href="/bagsh/urilga"
+        />
+      </section>
 
       {all.length > 0 && (
         <section>
