@@ -1,9 +1,8 @@
 import { redirect } from "next/navigation";
-import { and, eq, inArray } from "drizzle-orm";
-import { db } from "@/server/db";
-import { classMembers, classes, users } from "@/server/db/schema";
-import { childrenOf, getViewer } from "@/server/auth/access";
+import { getViewer } from "@/server/auth/access";
 import { AppShell } from "@/components/app-shell";
+import { childHomework, myChildren } from "@/server/homework/service";
+import { formatDueUb, isOverdue } from "@/server/homework/time";
 
 export const dynamic = "force-dynamic";
 
@@ -12,54 +11,76 @@ export default async function ParentHome() {
   if (!viewer) redirect("/login");
   if (viewer.role !== "PARENT") redirect("/");
 
-  // Эцэг эх ангийг ХҮҮХДЭЭРЭЭ ДАМЖУУЛАН харна — ангид шууд гишүүн биш.
-  const childIds = await childrenOf(viewer.userId);
-
-  const children =
-    childIds.length === 0
-      ? []
-      : await db
-          .select({
-            id: users.id,
-            name: users.name,
-            className: classes.name,
-            grade: classes.grade,
-          })
-          .from(users)
-          .leftJoin(
-            classMembers,
-            and(
-              eq(classMembers.userId, users.id),
-              eq(classMembers.role, "STUDENT"),
-              eq(classMembers.status, "ACTIVE"),
-            ),
-          )
-          .leftJoin(
-            classes,
-            and(eq(classes.id, classMembers.classId), eq(classes.schoolId, viewer.schoolId)),
-          )
-          .where(inArray(users.id, childIds));
+  // Хүүхэд бүрийн даалгаврыг тусад нь — эцэг эх ангид гишүүн биш, зөвхөн
+  // өөрийн хүүхдээр дамжиж харна.
+  const children = await myChildren(viewer);
+  const withHomework = await Promise.all(
+    children.map(async (c) => ({ child: c, items: await childHomework(viewer, c.id) })),
+  );
 
   return (
     <AppShell viewer={viewer}>
-      <h1 className="text-2xl font-extrabold text-ink">Хүүхдүүд</h1>
+      <h1 className="text-2xl font-extrabold text-navy">Хүүхдүүд</h1>
 
-      {children.length === 0 ? (
+      {withHomework.length === 0 ? (
         <p className="mt-6 rounded-2xl border border-dashed border-line px-4 py-8 text-center text-ink-soft">
           Холбогдсон хүүхэд алга байна. Багшаас урилга авна уу.
         </p>
       ) : (
-        <ul className="mt-6 space-y-3">
-          {children.map((c) => (
-            <li key={c.id} className="rounded-2xl border border-line bg-surface px-4 py-4">
-              <p className="text-lg font-extrabold text-ink">{c.name}</p>
-              <p className="text-sm text-ink-faint">
-                {c.className ? `${c.className} анги` : "Ангид ороогүй"}
-              </p>
-              <p className="mt-3 text-sm text-ink-soft">Өнөөдөр даалгавар алга.</p>
-            </li>
-          ))}
-        </ul>
+        withHomework.map(({ child, items }) => {
+          const todo = items.filter((h) => h.status === "ASSIGNED");
+          const done = items.length - todo.length;
+
+          return (
+            <section key={child.id} className="mt-7">
+              <div className="flex items-baseline justify-between gap-3">
+                <h2 className="text-lg font-extrabold text-ink">{child.name}</h2>
+                <span className="shrink-0 text-xs text-ink-faint">
+                  {child.className ? `${child.className} анги` : "Ангид ороогүй"}
+                </span>
+              </div>
+
+              {items.length === 0 ? (
+                <p className="mt-2 rounded-2xl border border-dashed border-line px-4 py-8 text-center text-ink-soft">
+                  Одоогоор даалгавар алга.
+                </p>
+              ) : (
+                <>
+                  <p className="mt-2 rounded-2xl bg-surface-soft px-5 py-3 text-center font-extrabold text-ink">
+                    {items.length} даалгавраас <span className="text-brand">{done}</span> нь
+                    хийгдсэн
+                  </p>
+
+                  <ul className="mt-3 space-y-2">
+                    {items.map((h) => (
+                      <li
+                        key={h.id}
+                        className="flex items-start justify-between gap-3 rounded-2xl border border-line bg-surface px-4 py-3"
+                      >
+                        <div className="min-w-0">
+                          <p className="truncate font-bold text-ink">{h.title}</p>
+                          <p className="text-xs text-ink-faint">
+                            {h.subject ?? "Хичээл"} · {formatDueUb(h.dueAt)} хүртэл
+                            {h.status === "ASSIGNED" && isOverdue(h.dueAt) && (
+                              <span className="text-accent"> · хугацаа өнгөрсөн</span>
+                            )}
+                          </p>
+                        </div>
+                        <span
+                          className={`shrink-0 text-sm font-bold ${
+                            h.status === "ASSIGNED" ? "text-ink-faint" : "text-dot-parent"
+                          }`}
+                        >
+                          {h.status === "ASSIGNED" ? "хийгээгүй" : "✓"}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
+            </section>
+          );
+        })
       )}
     </AppShell>
   );
