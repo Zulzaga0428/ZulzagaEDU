@@ -11,7 +11,10 @@ import { db } from "../src/server/db";
 import { classMembers, classes, guardians, schools, users } from "../src/server/db/schema";
 import type { Viewer } from "../src/server/auth/access";
 import {
+  checkAllDone,
+  checkSubmission,
   childHomework,
+  deleteHomework,
   createHomework,
   homeworkRoster,
   listClassHomework,
@@ -141,6 +144,41 @@ async function main() {
   check("шинэ даалгавар жагсаалтад орсон", Boolean(found));
   check("тоолол зөв", found?.done === 1 && found?.total === students.length,
     `${found?.done}/${found?.total}`);
+
+  console.log();
+  console.log("9. Багш шалгаж тэмдэглэх");
+  const r2 = await homeworkRoster(asTeacher, hwId);
+  const doneRow = r2.rows.find((r) => r.status === "DONE")!;
+  await checkSubmission(asTeacher, hwId, doneRow.submissionId, "Сайн бичжээ");
+  const r3 = await homeworkRoster(asTeacher, hwId);
+  const checkedRow = r3.rows.find((r) => r.submissionId === doneRow.submissionId)!;
+  check("төлөв CHECKED болов", checkedRow.status === "CHECKED");
+  check("тэмдэглэл хадгалагдав", checkedRow.teacherNote === "Сайн бичжээ");
+
+  const seen = (await myHomework(s0)).find((h) => h.id === hwId);
+  check("сурагч багшийн тэмдэглэлийг харав", seen?.teacherNote === "Сайн бичжээ");
+
+  console.log();
+  console.log("10. Өөр багш шалгах");
+  const other = r3.rows.find((r) => r.status === "ASSIGNED")!;
+  await refuses("өөр багш шалгах", () =>
+    checkSubmission(asTeacher2, hwId, other.submissionId, null),
+  );
+
+  console.log();
+  console.log("11. Бөөнд нь шалгах");
+  await markDone(s1, hwId);
+  const bulk = await checkAllDone(asTeacher, hwId);
+  check("хийсэн бүгд шалгагдав", bulk === 1, bulk + " мөр");
+
+  console.log();
+  console.log("12. Устгах эрх");
+  await refuses("өөр багш устгах", () => deleteHomework(asTeacher2, hwId));
+  await deleteHomework(asTeacher, hwId);
+  const afterDelete = await listClassHomework(asTeacher, klass.id);
+  check("даалгавар устав", !afterDelete.some((h) => h.id === hwId));
+  const orphan = (await myHomework(s0)).find((h) => h.id === hwId);
+  check("сурагчийн мөр цуг устав", orphan === undefined);
 
   console.log(`\n${failed === 0 ? "✅" : "❌"} ${passed} зөв, ${failed} алдаа\n`);
   process.exit(failed === 0 ? 0 : 1);

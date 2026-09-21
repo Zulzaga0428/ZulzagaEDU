@@ -4,15 +4,19 @@ import { getViewer } from "@/server/auth/access";
 import { AppShell } from "@/components/app-shell";
 import { homeworkRoster } from "@/server/homework/service";
 import { formatDueUb } from "@/server/homework/time";
+import { checkAllDoneAction, checkSubmissionAction, deleteHomeworkAction } from "../../actions";
 
 export const dynamic = "force-dynamic";
 
 /**
  * «Хэн хийсэн бэ» — багшийг системд үлдээдэг дэлгэц.
  *
- * Хийгээгүй сурагчид ЭХЭНДЭЭ гарна: багшийн хайж байгаа зүйл нь хийсэн хүн
- * биш, хийгээгүй хүн. Messenger группээс ялгарах гол зүйл ч мөн энэ —
- * тоолох шаардлагагүй.
+ * Гурван бүлэг, энэ дарааллаар:
+ *   1. Хийгээгүй   — багшийн хайж байгаа зүйл
+ *   2. Шалгах      — сурагч хийсэн, багш хараахан хараагүй
+ *   3. Шалгасан    — дууссан
+ *
+ * Messenger группээс ялгарах гол зүйл нь энэ: хэн ч тоолох шаардлагагүй.
  */
 export default async function HomeworkRosterPage({ params }: PageProps<"/bagsh/daalgavar/[id]">) {
   const viewer = await getViewer();
@@ -23,7 +27,8 @@ export default async function HomeworkRosterPage({ params }: PageProps<"/bagsh/d
   const { title, dueAt, rows } = await homeworkRoster(viewer, id);
 
   const pending = rows.filter((r) => r.status === "ASSIGNED");
-  const done = rows.filter((r) => r.status !== "ASSIGNED");
+  const toCheck = rows.filter((r) => r.status === "DONE");
+  const checked = rows.filter((r) => r.status === "CHECKED");
 
   return (
     <AppShell viewer={viewer}>
@@ -36,7 +41,7 @@ export default async function HomeworkRosterPage({ params }: PageProps<"/bagsh/d
 
       <p className="mt-5 rounded-2xl bg-surface-soft px-5 py-4 text-center">
         <span className="text-3xl font-extrabold text-brand">
-          {done.length}/{rows.length}
+          {rows.length - pending.length}/{rows.length}
         </span>
         <span className="mt-0.5 block text-sm text-ink-soft">хийсэн</span>
       </p>
@@ -48,7 +53,7 @@ export default async function HomeworkRosterPage({ params }: PageProps<"/bagsh/d
           </h2>
           <ul className="mt-2 divide-y divide-line overflow-hidden rounded-2xl border border-line bg-surface">
             {pending.map((r) => (
-              <li key={r.studentUserId} className="px-4 py-3 font-semibold text-ink">
+              <li key={r.submissionId} className="px-4 py-3 font-semibold text-ink">
                 {r.name}
               </li>
             ))}
@@ -56,21 +61,70 @@ export default async function HomeworkRosterPage({ params }: PageProps<"/bagsh/d
         </section>
       )}
 
-      {done.length > 0 && (
+      {toCheck.length > 0 && (
+        <section className="mt-7">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-xs font-bold uppercase tracking-wider text-ink-faint">
+              Шалгах · {toCheck.length}
+            </h2>
+            {/* 24 удаа дарахгүйн тулд. Ихэнх даалгаврыг багш бөөнд нь хардаг. */}
+            <form action={checkAllDoneAction}>
+              <input type="hidden" name="homeworkId" value={id} />
+              <button
+                type="submit"
+                className="rounded-full bg-brand px-3 py-1.5 text-xs font-bold text-brand-ink hover:bg-brand-strong"
+              >
+                Бүгдийг шалгасан
+              </button>
+            </form>
+          </div>
+
+          <ul className="mt-2 space-y-2">
+            {toCheck.map((r) => (
+              <li
+                key={r.submissionId}
+                className="rounded-2xl border border-line bg-surface px-4 py-3"
+              >
+                <p className="font-semibold text-ink">{r.name}</p>
+                <form action={checkSubmissionAction} className="mt-2 flex gap-2">
+                  <input type="hidden" name="homeworkId" value={id} />
+                  <input type="hidden" name="submissionId" value={r.submissionId} />
+                  <input
+                    name="note"
+                    maxLength={300}
+                    placeholder="Тэмдэглэл — заавал биш"
+                    className="min-w-0 flex-1 rounded-xl border border-line bg-bg px-3 py-2 text-sm text-ink placeholder:text-ink-faint"
+                  />
+                  <button
+                    type="submit"
+                    className="shrink-0 rounded-xl bg-brand px-4 py-2 text-sm font-bold text-brand-ink hover:bg-brand-strong"
+                  >
+                    Шалгасан
+                  </button>
+                </form>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {checked.length > 0 && (
         <section className="mt-7">
           <h2 className="text-xs font-bold uppercase tracking-wider text-ink-faint">
-            Хийсэн · {done.length}
+            Шалгасан · {checked.length}
           </h2>
           <ul className="mt-2 divide-y divide-line overflow-hidden rounded-2xl border border-line bg-surface">
-            {done.map((r) => (
-              <li
-                key={r.studentUserId}
-                className="flex items-center justify-between px-4 py-3"
-              >
-                <span className="font-semibold text-ink">{r.name}</span>
-                <span aria-label="хийсэн" className="text-dot-parent">
-                  ✓
-                </span>
+            {checked.map((r) => (
+              <li key={r.submissionId} className="px-4 py-3">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="font-semibold text-ink">{r.name}</span>
+                  <span aria-label="шалгасан" className="shrink-0 text-dot-parent">
+                    ✓
+                  </span>
+                </div>
+                {r.teacherNote && (
+                  <p className="mt-1 text-sm text-ink-soft">{r.teacherNote}</p>
+                )}
               </li>
             ))}
           </ul>
@@ -82,6 +136,16 @@ export default async function HomeworkRosterPage({ params }: PageProps<"/bagsh/d
           Энэ ангид сурагч алга байна.
         </p>
       )}
+
+      <form action={deleteHomeworkAction} className="mt-10 border-t border-line pt-5">
+        <input type="hidden" name="homeworkId" value={id} />
+        <button
+          type="submit"
+          className="w-full rounded-xl border border-line px-4 py-3 text-sm font-bold text-ink-soft hover:border-accent hover:text-accent"
+        >
+          Даалгаврыг устгах
+        </button>
+      </form>
     </AppShell>
   );
 }

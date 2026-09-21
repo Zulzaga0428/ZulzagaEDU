@@ -92,11 +92,19 @@ export default async function StudentHome() {
           </h2>
           <ul className="mt-2 divide-y divide-line overflow-hidden rounded-2xl border border-line bg-surface">
             {finished.map((h) => (
-              <li key={h.id} className="flex items-center justify-between gap-3 px-4 py-3">
-                <span className="min-w-0 truncate font-semibold text-ink-soft">{h.title}</span>
-                <span aria-label="хийсэн" className="shrink-0 text-dot-parent">
-                  ✓
-                </span>
+              <li key={h.id} className="px-4 py-3">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="min-w-0 truncate font-semibold text-ink-soft">{h.title}</span>
+                  {/* Багш харсан эсэх нь хүүхдийн хувьд шагнал — ялгаж харуулна. */}
+                  <span className="shrink-0 text-xs font-bold text-dot-parent">
+                    {h.status === "CHECKED" ? "Багш шалгасан ✓" : "✓"}
+                  </span>
+                </div>
+                {h.teacherNote && (
+                  <p className="mt-1 rounded-lg bg-surface-soft px-3 py-2 text-sm text-ink">
+                    Багш: {h.teacherNote}
+                  </p>
+                )}
               </li>
             ))}
           </ul>

@@ -3,7 +3,13 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requireViewer } from "@/server/auth/access";
-import { createHomework, myClasses } from "@/server/homework/service";
+import {
+  checkAllDone,
+  checkSubmission,
+  createHomework,
+  deleteHomework,
+  myClasses,
+} from "@/server/homework/service";
 import { endOfDayUb } from "@/server/homework/time";
 import { notifyNewHomework } from "@/server/notify/push";
 
@@ -44,6 +50,44 @@ export async function createHomeworkAction(formData: FormData): Promise<void> {
     console.error("Мэдэгдэл илгээхэд алдаа:", err);
   }
 
+  revalidatePath("/bagsh");
+  redirect("/bagsh");
+}
+
+export async function checkSubmissionAction(formData: FormData): Promise<void> {
+  const viewer = await requireViewer();
+  const homeworkId = formData.get("homeworkId");
+  const submissionId = formData.get("submissionId");
+  const note = formData.get("note");
+
+  if (typeof homeworkId !== "string" || typeof submissionId !== "string") {
+    throw new Error("Дутуу утга.");
+  }
+
+  await checkSubmission(
+    viewer,
+    homeworkId,
+    submissionId,
+    typeof note === "string" ? note : null,
+  );
+  revalidatePath(`/bagsh/daalgavar/${homeworkId}`);
+}
+
+export async function checkAllDoneAction(formData: FormData): Promise<void> {
+  const viewer = await requireViewer();
+  const homeworkId = formData.get("homeworkId");
+  if (typeof homeworkId !== "string") throw new Error("Дутуу утга.");
+
+  await checkAllDone(viewer, homeworkId);
+  revalidatePath(`/bagsh/daalgavar/${homeworkId}`);
+}
+
+export async function deleteHomeworkAction(formData: FormData): Promise<void> {
+  const viewer = await requireViewer();
+  const homeworkId = formData.get("homeworkId");
+  if (typeof homeworkId !== "string") throw new Error("Дутуу утга.");
+
+  await deleteHomework(viewer, homeworkId);
   revalidatePath("/bagsh");
   redirect("/bagsh");
 }

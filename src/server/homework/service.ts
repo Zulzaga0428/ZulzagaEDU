@@ -130,10 +130,12 @@ export async function listClassHomework(
 }
 
 export type SubmissionRow = {
+  submissionId: string;
   studentUserId: string;
   name: string;
   status: "ASSIGNED" | "DONE" | "CHECKED";
   markedDoneAt: Date | null;
+  teacherNote: string | null;
 };
 
 /**
@@ -144,7 +146,7 @@ export type SubmissionRow = {
 export async function homeworkRoster(
   viewer: Viewer,
   homeworkId: string,
-): Promise<{ title: string; dueAt: Date; rows: SubmissionRow[] }> {
+): Promise<{ title: string; dueAt: Date; classId: string; rows: SubmissionRow[] }> {
   const [hw] = await db
     .select({ id: homework.id, title: homework.title, dueAt: homework.dueAt, classId: homework.classId })
     .from(homework)
@@ -159,17 +161,19 @@ export async function homeworkRoster(
 
   const rows = await db
     .select({
+      submissionId: homeworkSubmissions.id,
       studentUserId: homeworkSubmissions.studentUserId,
       name: users.name,
       status: homeworkSubmissions.status,
       markedDoneAt: homeworkSubmissions.markedDoneAt,
+      teacherNote: homeworkSubmissions.teacherNote,
     })
     .from(homeworkSubmissions)
     .innerJoin(users, eq(users.id, homeworkSubmissions.studentUserId))
     .where(eq(homeworkSubmissions.homeworkId, homeworkId))
     .orderBy(asc(homeworkSubmissions.status), asc(users.name));
 
-  return { title: hw.title, dueAt: hw.dueAt, rows };
+  return { title: hw.title, dueAt: hw.dueAt, classId: hw.classId, rows };
 }
 
 export type StudentHomeworkRow = {
@@ -179,6 +183,7 @@ export type StudentHomeworkRow = {
   subject: string | null;
   dueAt: Date;
   status: "ASSIGNED" | "DONE" | "CHECKED";
+  teacherNote: string | null;
 };
 
 async function homeworkForStudent(studentUserId: string, schoolId: string) {
@@ -190,6 +195,7 @@ async function homeworkForStudent(studentUserId: string, schoolId: string) {
       subject: subjects.name,
       dueAt: homework.dueAt,
       status: homeworkSubmissions.status,
+      teacherNote: homeworkSubmissions.teacherNote,
     })
     .from(homeworkSubmissions)
     .innerJoin(homework, eq(homework.id, homeworkSubmissions.homeworkId))
@@ -241,6 +247,109 @@ export async function markDone(viewer: Viewer, homeworkId: string): Promise<void
     .returning({ id: homeworkSubmissions.id });
 
   if (result.length === 0) throw new AccessError("ЭРХГҮЙ");
+}
+
+/**
+ * Багш сурагчийн ажлыг шалгаж тэмдэглэнэ.
+ *
+ * Гогцооны сүүлчийн холбоос: сурагч «хийлээ» гэсний дараа багш хардаг
+ * гэдгийг мэдэрч байж систем амьд болно. Хараагүй бол хүүхэд хоёр долоо
+ * хоногийн дараа тэмдэглэхээ болино.
+ *
+ * ⚠️ `homeworkId`-г заавал дамжуулна: зөвхөн `submissionId`-гаар явбал
+ * аль ангийнх болохыг шалгахад нэмэлт асуулга хэрэгтэй болно.
+ */
+export async function checkSubmission(
+  viewer: Viewer,
+  homeworkId: string,
+  submissionId: string,
+  note: string | null,
+): Promise<void> {
+  if (viewer.role !== "TEACHER") throw new AccessError("ЭРХГҮЙ");
+
+  const [hw] = await db
+    .select({ classId: homework.classId })
+    .from(homework)
+    .where(and(eq(homework.id, homeworkId), eq(homework.schoolId, viewer.schoolId)))
+    .limit(1);
+  if (!hw) throw new AccessError("ЭРХГҮЙ");
+  if (!(await teachesClass(viewer.userId, hw.classId, viewer.schoolId))) {
+    throw new AccessError("ЭРХГҮЙ");
+  }
+
+  const updated = await db
+    .update(homeworkSubmissions)
+    .set({
+      status: "CHECKED",
+      checkedAt: new Date(),
+      checkedBy: viewer.userId,
+      teacherNote: note?.trim() || null,
+    })
+    .where(
+      and(
+        eq(homeworkSubmissions.id, submissionId),
+        eq(homeworkSubmissions.homeworkId, homeworkId),
+      ),
+    )
+    .returning({ id: homeworkSubmissions.id });
+
+  if (updated.length === 0) throw new AccessError("ЭРХГҮЙ");
+}
+
+/** Хийсэн бүгдийг нэг дор шалгасан болгоно — 24 удаа дарахгүйн тулд. */
+export async function checkAllDone(viewer: Viewer, homeworkId: string): Promise<number> {
+  if (viewer.role !== "TEACHER") throw new AccessError("ЭРХГҮЙ");
+
+  const [hw] = await db
+    .select({ classId: homework.classId })
+    .from(homework)
+    .where(and(eq(homework.id, homeworkId), eq(homework.schoolId, viewer.schoolId)))
+    .limit(1);
+  if (!hw) throw new AccessError("ЭРХГҮЙ");
+  if (!(await teachesClass(viewer.userId, hw.classId, viewer.schoolId))) {
+    throw new AccessError("ЭРХГҮЙ");
+  }
+
+  const updated = await db
+    .update(homeworkSubmissions)
+    .set({ status: "CHECKED", checkedAt: new Date(), checkedBy: viewer.userId })
+    .where(
+      and(
+        eq(homeworkSubmissions.homeworkId, homeworkId),
+        eq(homeworkSubmissions.status, "DONE"),
+      ),
+    )
+    .returning({ id: homeworkSubmissions.id });
+
+  return updated.length;
+}
+
+/** Даалгавар устгах — зөвхөн өөрийн үүсгэсэн, өөрийн ангийнх. */
+export async function deleteHomework(viewer: Viewer, homeworkId: string): Promise<void> {
+  if (viewer.role !== "TEACHER") throw new AccessError("ЭРХГҮЙ");
+
+  const [hw] = await db
+    .select({ classId: homework.classId, createdBy: homework.createdBy })
+    .from(homework)
+    .where(and(eq(homework.id, homeworkId), eq(homework.schoolId, viewer.schoolId)))
+    .limit(1);
+  if (!hw) throw new AccessError("ЭРХГҮЙ");
+  if (hw.createdBy !== viewer.userId) throw new AccessError("ЭРХГҮЙ");
+  if (!(await teachesClass(viewer.userId, hw.classId, viewer.schoolId))) {
+    throw new AccessError("ЭРХГҮЙ");
+  }
+
+  await db.transaction(async (tx) => {
+    await tx.delete(homework).where(eq(homework.id, homeworkId));
+    await tx.insert(auditLog).values({
+      schoolId: viewer.schoolId,
+      actorUserId: viewer.userId,
+      action: "HOMEWORK_DELETED",
+      targetType: "homework",
+      targetId: homeworkId,
+      meta: {},
+    });
+  });
 }
 
 /** Багш даалгавар өгөхөд сонгох хичээлүүд. */

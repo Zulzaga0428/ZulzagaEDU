@@ -65,13 +65,22 @@ export default async function ParentHome() {
                               <span className="text-accent"> · хугацаа өнгөрсөн</span>
                             )}
                           </p>
+                          {h.teacherNote && (
+                            <p className="mt-1.5 text-sm text-ink-soft">
+                              Багш: {h.teacherNote}
+                            </p>
+                          )}
                         </div>
                         <span
-                          className={`shrink-0 text-sm font-bold ${
+                          className={`shrink-0 text-xs font-bold ${
                             h.status === "ASSIGNED" ? "text-ink-faint" : "text-dot-parent"
                           }`}
                         >
-                          {h.status === "ASSIGNED" ? "хийгээгүй" : "✓"}
+                          {h.status === "ASSIGNED"
+                            ? "хийгээгүй"
+                            : h.status === "CHECKED"
+                              ? "багш шалгасан ✓"
+                              : "хийсэн ✓"}
                         </span>
                       </li>
                     ))}
