@@ -23,6 +23,7 @@ import {
 } from "../src/server/homework/service";
 import { endOfDayUb, todayUb, addDaysUb } from "../src/server/homework/time";
 import { groupByDue, parentHeadline, studentHeadline } from "../src/server/homework/grouping";
+import { schoolOverview } from "../src/server/school/overview";
 import type { StudentHomeworkRow } from "../src/server/homework/service";
 
 let passed = 0;
@@ -234,6 +235,36 @@ async function main() {
   check("сурагчид одоо хийх тоог хэлнэ", studentHeadline(g) === "Одоо 2 зүйл хийх байна",
     studentHeadline(g));
   check("бүгд дууссаныг баярлуулна", studentHeadline(allDone).includes("🎉"));
+
+  console.log();
+  console.log("14. Эрхлэгчийн тойм");
+  const [managerRow] = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(eq(users.email, "erhlegch@zulzaga.test"))
+    .limit(1);
+  const asManager: Viewer = {
+    userId: managerRow.id,
+    schoolId: school.id,
+    role: "ACADEMIC_MANAGER",
+  };
+
+  const ov = await schoolOverview(asManager);
+  check("багшийн тоо зөв", ov.teachers === 2, ov.teachers + " багш");
+  check("сурагчийн тоо зөв", ov.students === students.length, ov.students + " сурагч");
+  check("ангиуд буцаав", ov.classes.length >= 1);
+
+  // Гол хамгаалалт: энэ объектод даалгаврын гарчиг ОРОХГҮЙ.
+  const asText = JSON.stringify(ov);
+  check(
+    "тоймд даалгаврын агуулга АЛГА",
+    !asText.includes("Шалгалтын даалгавар") && !asText.includes("title"),
+  );
+
+  await refuses("багш эрхлэгчийн тоймыг харах", () => schoolOverview(asTeacher));
+  await refuses("эцэг эх эрхлэгчийн тоймыг харах", () =>
+    schoolOverview({ userId: link.parentId, schoolId: school.id, role: "PARENT" }),
+  );
 
   console.log(`\n${failed === 0 ? "✅" : "❌"} ${passed} зөв, ${failed} алдаа\n`);
   process.exit(failed === 0 ? 0 : 1);
