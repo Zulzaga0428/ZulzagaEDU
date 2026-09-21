@@ -3,7 +3,7 @@ import { getViewer } from "@/server/auth/access";
 import { AppShell } from "@/components/app-shell";
 import { childHomework, myChildren } from "@/server/homework/service";
 import type { StudentHomeworkRow } from "@/server/homework/service";
-import { groupForParent, headline } from "@/server/homework/parent-view";
+import { groupByDue, parentHeadline } from "@/server/homework/grouping";
 import { formatDueUb } from "@/server/homework/time";
 
 export const dynamic = "force-dynamic";
@@ -68,7 +68,7 @@ export default async function ParentHome() {
   const cards = await Promise.all(
     children.map(async (child) => {
       const items = await childHomework(viewer, child.id);
-      return { child, groups: groupForParent(items) };
+      return { child, groups: groupByDue(items) };
     }),
   );
 
@@ -80,7 +80,7 @@ export default async function ParentHome() {
         </p>
       ) : (
         cards.map(({ child, groups }) => {
-          const head = headline(groups);
+          const head = parentHeadline(groups);
           return (
             <section key={child.id} className="mb-10">
               <div className="flex items-baseline justify-between gap-3">

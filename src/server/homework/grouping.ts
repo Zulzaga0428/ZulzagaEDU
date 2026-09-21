@@ -2,17 +2,16 @@ import type { StudentHomeworkRow } from "@/server/homework/service";
 import { todayUb } from "@/server/homework/time";
 
 /**
- * Эцэг эхийн нүүрийг бүлэглэх логик.
+ * Даалгаврыг хугацаагаар нь бүлэглэх логик — эцэг эх, сурагч хоёуланд.
  *
  * Тусдаа файлд байгаа шалтгаан: энэ нь UI биш, **шийдвэр**. «Юуг нь эхэнд
  * харуулах вэ» гэдэг нь бүтээгдэхүүний асуулт бөгөөд тестлэгдэх ёстой.
  *
  * Эцэг эх dashboard хүсэхгүй. Оройн 8 цагт 30 секунд зарцуулаад «өнөөдөр
  * юу хийх ёстой вэ, хаана туслах хэрэгтэй вэ» гэдгийг мэдэхийг хүснэ.
- * Тиймээс бүх даалгаврыг нэг жагсаалтаар цутгахгүй.
  */
 
-export type ParentGroups = {
+export type DueGroups = {
   /** Хугацаа нь өнгөрсөн ч хийгээгүй — хамгийн түрүүнд. */
   overdue: StudentHomeworkRow[];
   /** Өнөөдөр дуусах. */
@@ -32,10 +31,10 @@ function dueDayUb(due: Date): string {
   return todayUb(due);
 }
 
-export function groupForParent(
+export function groupByDue(
   items: StudentHomeworkRow[],
   now: Date = new Date(),
-): ParentGroups {
+): DueGroups {
   const today = todayUb(now);
   const pending = items.filter((h) => h.status === "ASSIGNED");
 
@@ -55,7 +54,7 @@ export function groupForParent(
 }
 
 /** Картын дээд мөр — эцэг эх ганцхан өгүүлбэр уншиж ойлгох ёстой. */
-export function headline(g: ParentGroups): { text: string; tone: "сайн" | "анхаар" | "хоосон" } {
+export function parentHeadline(g: DueGroups): { text: string; tone: "сайн" | "анхаар" | "хоосон" } {
   if (g.totalCount === 0) return { text: "Одоогоор даалгавар алга.", tone: "хоосон" };
   if (g.overdue.length > 0) {
     return { text: `${g.overdue.length} даалгаврын хугацаа өнгөрчээ.`, tone: "анхаар" };
@@ -67,4 +66,19 @@ export function headline(g: ParentGroups): { text: string; tone: "сайн" | "�
     return { text: `Хийх ${g.pendingCount} даалгавар байна.`, tone: "сайн" };
   }
   return { text: "Бүгдийг хийсэн байна 🌿", tone: "сайн" };
+}
+
+/**
+ * Сурагчийн нүүрний дээд мөр.
+ *
+ * Хүүхдэд хувь хэлэхгүй, тоо хэлнэ. Мөн хоцорсныг зэмлэхгүй — «өчигдрийнх»
+ * гэдэг нь хангалттай тодорхой, гутаахгүй. 7 настай хүүхэд аппыг дайсан
+ * гэж мэдэрвэл дахиж нээхгүй.
+ */
+export function studentHeadline(g: DueGroups): string {
+  if (g.totalCount === 0) return "Даалгавар алга. Амарч байгаарай 🌿";
+  if (g.pendingCount === 0) return "Бүгдийг хийчихлээ 🎉";
+  const now = g.overdue.length + g.today.length;
+  if (now > 0) return `Одоо ${now} зүйл хийх байна`;
+  return `Хийх ${g.pendingCount} зүйл байна`;
 }

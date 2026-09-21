@@ -22,7 +22,7 @@ import {
   myHomework,
 } from "../src/server/homework/service";
 import { endOfDayUb, todayUb, addDaysUb } from "../src/server/homework/time";
-import { groupForParent, headline } from "../src/server/homework/parent-view";
+import { groupByDue, parentHeadline, studentHeadline } from "../src/server/homework/grouping";
 import type { StudentHomeworkRow } from "../src/server/homework/service";
 
 let passed = 0;
@@ -205,7 +205,7 @@ async function main() {
   const ystd = addDaysUb(t, -1);
   const tmrw = addDaysUb(t, 1);
 
-  const g = groupForParent([
+  const g = groupByDue([
     mk("хоцорсон", ystd, "ASSIGNED"),
     mk("өнөөдөр", t, "ASSIGNED"),
     mk("маргааш", tmrw, "ASSIGNED"),
@@ -221,10 +221,19 @@ async function main() {
   check("тэмдэглэлгүй шалгалт хасагдав", g.notes.length === 1 && g.notes[0].id === "шалгасан");
   check("тоолол зөв", g.totalCount === 6 && g.doneCount === 3);
 
-  check("хоцорсон бол анхааруулна", headline(g).tone === "анхаар");
-  const allDone = groupForParent([mk("а", ystd, "CHECKED")]);
-  check("бүгд хийгдсэн бол тайван", headline(allDone).tone === "сайн");
-  check("хоосон бол хоосон гэнэ", headline(groupForParent([])).tone === "хоосон");
+  check("хоцорсон бол анхааруулна", parentHeadline(g).tone === "анхаар");
+  const allDone = groupByDue([mk("а", ystd, "CHECKED")]);
+  check("бүгд хийгдсэн бол тайван", parentHeadline(allDone).tone === "сайн");
+  check("хоосон бол хоосон гэнэ", parentHeadline(groupByDue([])).tone === "хоосон");
+
+  check(
+    "сурагчид хоцорсныг зэмлэхгүй",
+    !studentHeadline(g).includes("хоцор") && !studentHeadline(g).includes("өнгөр"),
+    studentHeadline(g),
+  );
+  check("сурагчид одоо хийх тоог хэлнэ", studentHeadline(g) === "Одоо 2 зүйл хийх байна",
+    studentHeadline(g));
+  check("бүгд дууссаныг баярлуулна", studentHeadline(allDone).includes("🎉"));
 
   console.log(`\n${failed === 0 ? "✅" : "❌"} ${passed} зөв, ${failed} алдаа\n`);
   process.exit(failed === 0 ? 0 : 1);

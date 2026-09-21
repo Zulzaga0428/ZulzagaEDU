@@ -5,10 +5,46 @@ import { classMembers, classes } from "@/server/db/schema";
 import { getViewer } from "@/server/auth/access";
 import { AppShell } from "@/components/app-shell";
 import { myHomework } from "@/server/homework/service";
-import { formatDueUb, isOverdue } from "@/server/homework/time";
+import type { StudentHomeworkRow } from "@/server/homework/service";
+import { groupByDue, studentHeadline } from "@/server/homework/grouping";
+import { formatDueUb } from "@/server/homework/time";
 import { markDoneAction } from "./actions";
 
 export const dynamic = "force-dynamic";
+
+/**
+ * Сурагчийн нүүр — 1–5 ангийн хүүхдэд.
+ *
+ * Гурван дүрэм:
+ *   · хувь биш, тоо — «78%» гэдгийг 7 настай ойлгохгүй
+ *   · хоцорсныг зэмлэхгүй — «өчигдрийнх» гэдэг хангалттай тодорхой.
+ *     Апп дайсан мэт санагдвал хүүхэд дахиж нээхгүй
+ *   · товч том — жижиг хуруунд
+ */
+
+function Task({ h, when }: { h: StudentHomeworkRow; when: string }) {
+  return (
+    <li className="rounded-2xl border border-line bg-surface px-4 py-4">
+      <p className="text-lg font-extrabold text-ink">{h.title}</p>
+      <p className="text-xs text-ink-faint">
+        {h.subject ?? "Хичээл"} · {when}
+      </p>
+      {h.description && (
+        <p className="mt-2 whitespace-pre-line text-sm text-ink-soft">{h.description}</p>
+      )}
+
+      <form action={markDoneAction} className="mt-4">
+        <input type="hidden" name="homeworkId" value={h.id} />
+        <button
+          type="submit"
+          className="w-full rounded-xl bg-brand px-4 py-4 text-base font-extrabold text-brand-ink hover:bg-brand-strong"
+        >
+          Хийчихлээ
+        </button>
+      </form>
+    </li>
+  );
+}
 
 export default async function StudentHome() {
   const viewer = await getViewer();
@@ -32,64 +68,57 @@ export default async function StudentHome() {
     myHomework(viewer),
   ]);
 
-  const todo = items.filter((h) => h.status === "ASSIGNED");
+  const g = groupByDue(items);
+  const now = [...g.overdue, ...g.today];
   const finished = items.filter((h) => h.status !== "ASSIGNED");
 
   return (
     <AppShell viewer={viewer}>
       <h1 className="text-2xl font-extrabold text-navy">Сайн уу!</h1>
-      <p className="mt-1 text-ink-soft">{myClass?.name ? `${myClass.name} анги` : "Ангид ороогүй"}</p>
+      <p className="mt-1 text-ink-soft">
+        {myClass?.name ? `${myClass.name} анги` : "Ангид ороогүй"}
+      </p>
 
-      {/* Хүүхдэд хувь биш, тоо: «3-аас 1 нь хийгдсэн». */}
-      {items.length > 0 && (
-        <p className="mt-5 rounded-2xl bg-surface-soft px-5 py-4 text-center text-lg font-extrabold text-ink">
-          {items.length} даалгавраас{" "}
-          <span className="text-brand">{finished.length}</span> нь хийгдсэн
+      <p className="mt-5 rounded-2xl bg-surface-soft px-5 py-5 text-center text-xl font-extrabold text-ink">
+        {studentHeadline(g)}
+      </p>
+
+      {g.totalCount > 0 && (
+        <p className="mt-1.5 text-center text-xs text-ink-faint">
+          {g.totalCount} даалгавраас {g.doneCount} нь хийгдсэн
         </p>
       )}
 
-      <section className="mt-7">
-        <h2 className="text-xs font-bold uppercase tracking-wider text-ink-faint">
-          Хийх зүйл
-        </h2>
-
-        {todo.length === 0 ? (
-          <p className="mt-2 rounded-2xl border border-dashed border-line px-4 py-10 text-center text-ink-soft">
-            Даалгавар алга. Амарч байгаарай 🌿
-          </p>
-        ) : (
+      {now.length > 0 && (
+        <section className="mt-7">
+          <h2 className="text-xs font-bold uppercase tracking-wider text-ink-faint">
+            Одоо хийх
+          </h2>
           <ul className="mt-2 space-y-3">
-            {todo.map((h) => (
-              <li key={h.id} className="rounded-2xl border border-line bg-surface px-4 py-4">
-                <p className="text-lg font-extrabold text-ink">{h.title}</p>
-                <p className="text-xs text-ink-faint">
-                  {h.subject ?? "Хичээл"} · {formatDueUb(h.dueAt)} хүртэл
-                  {isOverdue(h.dueAt) && <span className="text-accent"> · хугацаа өнгөрсөн</span>}
-                </p>
-                {h.description && (
-                  <p className="mt-2 whitespace-pre-line text-sm text-ink-soft">{h.description}</p>
-                )}
-
-                <form action={markDoneAction} className="mt-4">
-                  <input type="hidden" name="homeworkId" value={h.id} />
-                  <button
-                    type="submit"
-                    className="w-full rounded-xl bg-brand px-4 py-4 text-base font-extrabold text-brand-ink hover:bg-brand-strong"
-                  >
-                    Хийчихлээ
-                  </button>
-                </form>
-              </li>
+            {g.overdue.map((h) => (
+              <Task key={h.id} h={h} when={`${formatDueUb(h.dueAt)} хүртэл байсан`} />
+            ))}
+            {g.today.map((h) => (
+              <Task key={h.id} h={h} when="өнөөдөр хүртэл" />
             ))}
           </ul>
-        )}
-      </section>
+        </section>
+      )}
+
+      {g.upcoming.length > 0 && (
+        <section className="mt-7">
+          <h2 className="text-xs font-bold uppercase tracking-wider text-ink-faint">Дараа</h2>
+          <ul className="mt-2 space-y-3">
+            {g.upcoming.map((h) => (
+              <Task key={h.id} h={h} when={`${formatDueUb(h.dueAt)} хүртэл`} />
+            ))}
+          </ul>
+        </section>
+      )}
 
       {finished.length > 0 && (
         <section className="mt-7">
-          <h2 className="text-xs font-bold uppercase tracking-wider text-ink-faint">
-            Хийсэн
-          </h2>
+          <h2 className="text-xs font-bold uppercase tracking-wider text-ink-faint">Хийсэн</h2>
           <ul className="mt-2 divide-y divide-line overflow-hidden rounded-2xl border border-line bg-surface">
             {finished.map((h) => (
               <li key={h.id} className="px-4 py-3">
