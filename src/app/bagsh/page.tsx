@@ -6,6 +6,7 @@ import {
   ClipboardCheck,
   Plus,
   TriangleAlert,
+  Megaphone,
   UserPlus,
   Users,
 } from "lucide-react";
@@ -147,6 +148,16 @@ export default async function TeacherHome() {
             subtitle="Улиралд нэг удаа бөглөнө"
             trailing={<span className="text-ink-faint">›</span>}
             href="/bagsh/hovaari"
+          />
+        </div>
+        <div className="mt-2">
+          <Row
+            icon={Megaphone}
+            tint="шар"
+            title="Зарлал"
+            subtitle="Ангидаа мэдээлэл өгөх"
+            trailing={<span className="text-ink-faint">›</span>}
+            href="/bagsh/zarlal"
           />
         </div>
       </section>

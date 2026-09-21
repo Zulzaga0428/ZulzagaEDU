@@ -23,6 +23,20 @@ const pool =
     ssl: connectionString.includes("proxy.rlwy.net") ? { rejectUnauthorized: false } : undefined,
   });
 
+/**
+ * ⚠️ Залгуургүй бол ЗААВАЛ унана.
+ *
+ * `pg`-ийн Pool нь сул холболт тасрахад `error` үйл явдал гаргадаг. Node-д
+ * залгуургүй `error` нь процессыг бүхэлд нь унагаадаг — нэг сул холболт
+ * тасарсны улмаас бүх хэрэглэгч унана.
+ *
+ * Railway-гийн proxy болон Postgres хоёулаа сул холболтыг тасалдаг тул энэ
+ * нь ховор биш. Бүртгээд цааш явна: pool өөрөө шинэ холболт үүсгэнэ.
+ */
+pool.on("error", (err) => {
+  console.error("Postgres pool алдаа (үргэлжилнэ):", err.message);
+});
+
 if (process.env.NODE_ENV !== "production") globalForDb.__zeduPool = pool;
 
 export const db = drizzle(pool, { schema });

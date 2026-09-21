@@ -1,6 +1,13 @@
 import { redirect } from "next/navigation";
 import { and, eq } from "drizzle-orm";
-import { BookOpen, Calculator, NotebookPen, PartyPopper, Sparkles } from "lucide-react";
+import {
+  BookOpen,
+  Calculator,
+  Megaphone,
+  NotebookPen,
+  PartyPopper,
+  Sparkles,
+} from "lucide-react";
 import { db } from "@/server/db";
 import { classMembers, classes, users } from "@/server/db/schema";
 import { getViewer } from "@/server/auth/access";
@@ -12,6 +19,7 @@ import type { StudentHomeworkRow } from "@/server/homework/service";
 import { groupByDue, studentHeadline } from "@/server/homework/grouping";
 import { formatDueUb } from "@/server/homework/time";
 import { lessonName, myWeek, nextSchoolDay } from "@/server/schedule/service";
+import { myAnnouncements } from "@/server/announce/service";
 import { markDoneAction } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -89,6 +97,7 @@ export default async function StudentHome() {
   ]);
 
   const nextDay = nextSchoolDay(await myWeek(viewer));
+  const notices = await myAnnouncements(viewer, 3);
 
   const g = groupByDue(items);
   const now = g.overdue.length + g.today.length;
@@ -152,6 +161,22 @@ export default async function StudentHome() {
       )}
 
       {g.totalCount === 0 && <Empty icon={BookOpen}>Даалгавар алга. Амарч байгаарай 🌿</Empty>}
+
+      {notices.length > 0 && (
+        <section>
+          <SectionLabel>Зарлал</SectionLabel>
+          <div className="space-y-2">
+            {notices.map((a) => (
+              <Card key={a.id}>
+                <div className="flex items-start gap-3">
+                  <IconBox icon={Megaphone} tint="шар" />
+                  <p className="min-w-0 whitespace-pre-line text-sm text-ink">{a.body}</p>
+                </div>
+              </Card>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Даалгавар байхгүй өдөр ч аппыг нээх шалтгаан болно. */}
       {nextDay && (

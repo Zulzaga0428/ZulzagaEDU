@@ -33,6 +33,13 @@ import { groupByDue, parentHeadline, studentHeadline } from "../src/server/homew
 import { schoolOverview } from "../src/server/school/overview";
 import { sendDueReminders } from "../src/server/notify/push";
 import {
+  classAnnouncements,
+  deleteAnnouncement,
+  myAnnouncements,
+  parentAnnouncements,
+  postAnnouncement,
+} from "../src/server/announce/service";
+import {
   addTeacher,
   assignTeacher,
   createClass,
@@ -675,6 +682,77 @@ async function main() {
   );
 
   await deleteHomework(asTeacher, dueTomorrow);
+
+  console.log();
+  console.log("30. Зарлал");
+  const parentViewer: Viewer = { userId: link.parentId, schoolId: school.id, role: "PARENT" };
+
+  const forAll = await postAnnouncement(asTeacher, {
+    classId: klass.id,
+    body: "Маргааш 10:00 цагт хурал",
+    audience: "ALL",
+  });
+  check("багш зарлал бичив", Boolean(forAll));
+
+  await refuses("өөр ангийн багш зарлал бичих", () =>
+    postAnnouncement(asTeacher2, { classId: klass.id, body: "Болохгүй", audience: "ALL" }),
+  );
+  await refuses("багш сургууль даяар зарлах", () =>
+    postAnnouncement(asTeacher, { classId: null, body: "Болохгүй", audience: "ALL" }),
+  );
+  await refuses("хоосон зарлал", () =>
+    postAnnouncement(asTeacher, { classId: klass.id, body: "   ", audience: "ALL" }),
+  );
+
+  const seenByStudent = await myAnnouncements(s0, 10);
+  const seenByParent = await parentAnnouncements(parentViewer, 10);
+  check("сурагч харав", seenByStudent.some((a) => a.id === forAll));
+  check("эцэг эх харав", seenByParent.some((a) => a.id === forAll));
+
+  console.log();
+  console.log("31. «Хэнд» гэсэн шүүлт");
+  const forParents = await postAnnouncement(asTeacher, {
+    classId: klass.id,
+    body: "Төлбөрийн тухай",
+    audience: "PARENTS",
+  });
+  const forStudents = await postAnnouncement(asTeacher, {
+    classId: klass.id,
+    body: "Спортын хувцсаа авчир",
+    audience: "STUDENTS",
+  });
+
+  const st2 = await myAnnouncements(s0, 10);
+  const pa2 = await parentAnnouncements(parentViewer, 10);
+
+  check("эцэг эхийн зарлал сурагчид ХАРАГДАХГҮЙ",
+    !st2.some((a) => a.id === forParents));
+  check("эцэг эхийн зарлал эцэг эхэд харагдав", pa2.some((a) => a.id === forParents));
+  check("сурагчийн зарлал эцэг эхэд ХАРАГДАХГҮЙ",
+    !pa2.some((a) => a.id === forStudents));
+  check("сурагчийн зарлал сурагчид харагдав", st2.some((a) => a.id === forStudents));
+
+  console.log();
+  console.log("32. Зарлал устгах");
+  await refuses("өөр хүний зарлал устгах", () => deleteAnnouncement(asTeacher2, forAll));
+  await deleteAnnouncement(asTeacher, forAll);
+  const left = await classAnnouncements(asTeacher, klass.id, 20);
+  check("устсан", !left.some((a) => a.id === forAll));
+
+  // Цэвэрлэнэ
+  await deleteAnnouncement(asTeacher, forParents);
+  await deleteAnnouncement(asTeacher, forStudents);
+
+  console.log();
+  console.log("33. Эрхлэгчийн сургууль даяарх зарлал");
+  const schoolWide = await postAnnouncement(asManager, {
+    classId: null,
+    body: "Амралтын өдрийн хуваарь",
+    audience: "ALL",
+  });
+  const st3 = await myAnnouncements(s0, 10);
+  check("сургууль даяарх зарлал сурагчид хүрэв", st3.some((a) => a.id === schoolWide));
+  await deleteAnnouncement(asManager, schoolWide);
 
   console.log(`\n${failed === 0 ? "✅" : "❌"} ${passed} зөв, ${failed} алдаа\n`);
   process.exit(failed === 0 ? 0 : 1);

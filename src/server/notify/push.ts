@@ -285,3 +285,49 @@ export async function sendDueReminders(
 
   return { students, parents, skipped: rows.length - perStudent.size };
 }
+
+/**
+ * Зарлалын мэдэгдэл.
+ *
+ * Нэг зарлал = нэг мэдэгдэл. Зарлал нь ховор үйл явдал тул багцлах
+ * шаардлагагүй — харин олон болбол тэр нь өөрөө анхааруулга: багш зарлалыг
+ * чат мэт ашиглаж эхэлсэн байна.
+ */
+export async function notifyAnnouncement(args: {
+  schoolId: string;
+  announcementId: string;
+  body: string;
+  className: string | null;
+  students: string[];
+  parents: string[];
+}): Promise<{ recipients: number }> {
+  const recipients = [
+    ...args.students.map((id) => ({ id, url: "/suragch" })),
+    ...args.parents.map((id) => ({ id, url: "/etseg-eh" })),
+  ];
+  if (recipients.length === 0) return { recipients: 0 };
+
+  await db.insert(notifications).values(
+    recipients.map((r) => ({
+      userId: r.id,
+      schoolId: args.schoolId,
+      kind: "ANNOUNCEMENT" as const,
+      payload: { announcementId: args.announcementId, body: args.body },
+    })),
+  );
+
+  const short = args.body.length > 120 ? args.body.slice(0, 117) + "…" : args.body;
+
+  await Promise.all(
+    recipients.map((r) =>
+      pushToUser(r.id, {
+        title: args.className ? `${args.className} — зарлал` : "Сургуулийн зарлал",
+        body: short,
+        url: r.url,
+        tag: `ann-${args.announcementId}`,
+      }),
+    ),
+  );
+
+  return { recipients: recipients.length };
+}

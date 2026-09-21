@@ -1,5 +1,12 @@
 import { redirect } from "next/navigation";
-import { CalendarClock, CircleCheck, MessageSquareText, TriangleAlert, Users } from "lucide-react";
+import {
+  CalendarClock,
+  CircleCheck,
+  Megaphone,
+  MessageSquareText,
+  TriangleAlert,
+  Users,
+} from "lucide-react";
 import { getViewer } from "@/server/auth/access";
 import { AppShell } from "@/components/app-shell";
 import { Card, Empty, FeatureCard, IconBox, Row, SectionLabel } from "@/components/ui";
@@ -8,6 +15,7 @@ import type { StudentHomeworkRow } from "@/server/homework/service";
 import { groupByDue, parentHeadline } from "@/server/homework/grouping";
 import { formatDueUb } from "@/server/homework/time";
 import { childWeek, lessonName, nextSchoolDay } from "@/server/schedule/service";
+import { parentAnnouncements } from "@/server/announce/service";
 
 export const dynamic = "force-dynamic";
 
@@ -67,6 +75,7 @@ export default async function ParentHome() {
   );
 
   const attention = cards.filter((c) => parentHeadline(c.groups).tone === "анхаар").length;
+  const notices = await parentAnnouncements(viewer, 3);
 
   return (
     <AppShell
@@ -75,6 +84,27 @@ export default async function ParentHome() {
       title={attention > 0 ? "Өнөөдөр анхаарах зүйл байна" : "Бүх зүйл хэвийн"}
       subtitle="Хүүхдийнхээ өнөөдрийг 30 секундэд."
     >
+      {notices.length > 0 && (
+        <section>
+          <SectionLabel>Зарлал</SectionLabel>
+          <div className="space-y-2">
+            {notices.map((a) => (
+              <Card key={a.id}>
+                <div className="flex items-start gap-3">
+                  <IconBox icon={Megaphone} tint="шар" />
+                  <div className="min-w-0">
+                    <p className="whitespace-pre-line text-sm text-ink">{a.body}</p>
+                    <p className="mt-1 text-xs text-ink-faint">
+                      {a.className ?? "Сургууль даяар"}
+                    </p>
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+        </section>
+      )}
+
       {cards.length === 0 ? (
         <Empty icon={Users}>Холбогдсон хүүхэд алга байна. Багшаас урилга авна уу.</Empty>
       ) : (

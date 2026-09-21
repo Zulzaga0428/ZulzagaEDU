@@ -12,7 +12,7 @@
     "db:studio": "drizzle-kit studio",
     "typecheck": "tsc --noEmit",
     "db:seed": "tsx --conditions=react-server --env-file=.env.local scripts/seed.ts",
-    "smoke": "tsx --conditions=react-server --env-file=.env.local scripts/smoke-homework.ts"
+    "smoke": "npm run db:seed --silent && tsx --conditions=react-server --env-file=.env.local scripts/smoke-homework.ts"
   },
   "dependencies": {
     "drizzle-orm": "^0.45.2",
