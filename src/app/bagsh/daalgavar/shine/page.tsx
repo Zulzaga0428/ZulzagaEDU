@@ -2,6 +2,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getViewer } from "@/server/auth/access";
 import { AppShell } from "@/components/app-shell";
+import { Empty } from "@/components/ui";
+import { Users } from "lucide-react";
 import { myClasses, schoolSubjects } from "@/server/homework/service";
 import { addDaysUb, todayUb } from "@/server/homework/time";
 import { createHomeworkAction } from "../../actions";
@@ -25,7 +27,25 @@ export default async function NewHomeworkPage() {
     schoolSubjects(viewer),
   ]);
 
-  if (classList.length === 0) redirect("/bagsh");
+  // Анги байхгүй багшийг чимээгүй буцаахгүй — шалтгааныг нь хэлнэ.
+  if (classList.length === 0) {
+    return (
+      <AppShell
+        viewer={viewer}
+        eyebrow="Багшийн орон зай"
+        title="Даалгавар өгөх"
+        subtitle="Даалгавар өгөхийн тулд анги хэрэгтэй."
+      >
+        <Link href="/bagsh" className="text-sm font-bold text-brand hover:underline">
+          ← Буцах
+        </Link>
+        <Empty icon={Users}>
+          Танд хариуцсан анги алга байна. Эрхлэгчээсээ анги хуваарилуулсны дараа
+          даалгавар өгч эхэлнэ.
+        </Empty>
+      </AppShell>
+    );
+  }
 
   const tomorrow = addDaysUb(todayUb(), 1);
 

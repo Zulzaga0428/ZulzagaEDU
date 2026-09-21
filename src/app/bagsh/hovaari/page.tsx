@@ -36,7 +36,30 @@ export default async function SchedulePage({ searchParams }: PageProps<"/bagsh/h
     myClasses(viewer),
     schoolSubjects(viewer),
   ]);
-  if (classList.length === 0) redirect("/bagsh");
+
+  /*
+    ⚠️ Өмнө нь анги байхгүй багшийг чимээгүй буцаадаг байв. Багш товч дараад
+    л эхний хуудсандаа эргэж ирдэг тул «апп ажиллахгүй байна» гэж харагддаг.
+    Шалтгааныг нь хэлэх ёстой.
+  */
+  if (classList.length === 0) {
+    return (
+      <AppShell
+        viewer={viewer}
+        eyebrow="Багшийн орон зай"
+        title="Хичээлийн хуваарь"
+        subtitle="Хуваарь оруулахын тулд анги хэрэгтэй."
+      >
+        <Link href="/bagsh" className="text-sm font-bold text-brand hover:underline">
+          ← Буцах
+        </Link>
+        <Empty icon={CalendarDays}>
+          Танд хариуцсан анги алга байна. Эрхлэгчээсээ анги хуваарилуулсны дараа
+          энд хуваариа оруулна.
+        </Empty>
+      </AppShell>
+    );
+  }
 
   const klass = classList[0];
   const current = await teacherWeek(viewer, klass.id);
