@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireViewer } from "@/server/auth/access";
 import QRCode from "qrcode";
 import { createParentInvite, decideGuardian } from "@/server/invite/service";
+import { addStudent, resetStudentPin } from "@/server/students/service";
 
 /**
  * Урилгын линк ба QR-ыг үүсгэнэ.
@@ -42,4 +43,27 @@ export async function approveGuardianAction(formData: FormData): Promise<void> {
   await decideGuardian(viewer, id, decision);
   revalidatePath("/bagsh/urilga");
   revalidatePath("/bagsh");
+}
+
+/**
+ * Шинэ сурагч нэмнэ. Код ба PIN-ийг буцаана — **нэг л удаа харагдана**.
+ */
+export async function addStudentAction(
+  classId: string,
+  name: string,
+): Promise<{ loginCode: string; pin: string; name: string }> {
+  const viewer = await requireViewer();
+  const created = await addStudent(viewer, classId, name);
+  revalidatePath("/bagsh/urilga");
+  return created;
+}
+
+/** PIN мартсан сурагчид шинийг өгнө. Код нь хэвээр үлдэнэ. */
+export async function resetPinAction(
+  studentUserId: string,
+): Promise<{ loginCode: string; pin: string; name: string }> {
+  const viewer = await requireViewer();
+  const res = await resetStudentPin(viewer, studentUserId);
+  revalidatePath("/bagsh/urilga");
+  return res;
 }

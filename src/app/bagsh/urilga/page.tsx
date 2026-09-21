@@ -5,6 +5,7 @@ import { getViewer } from "@/server/auth/access";
 import { AppShell } from "@/components/app-shell";
 import { Card, Empty, IconBox, SectionLabel } from "@/components/ui";
 import { InviteButton } from "@/components/invite-button";
+import { AddStudent, ResetPin } from "@/components/student-credentials";
 import { myClasses } from "@/server/homework/service";
 import { classStudents, pendingGuardians } from "@/server/invite/service";
 import { approveGuardianAction } from "./actions";
@@ -103,6 +104,10 @@ export default async function InvitePage() {
             {klass.name} анги · {students.length} сурагч
           </SectionLabel>
 
+          <div className="mb-3">
+            <AddStudent classId={klass.id} className={klass.name} />
+          </div>
+
           <div className="space-y-2">
             {students.map((s) => (
               <Card key={s.id}>
@@ -122,13 +127,19 @@ export default async function InvitePage() {
                   <InviteButton classId={klass.id} studentId={s.id} studentName={s.name} />
                 </div>
 
-                {s.loginCode && (
-                  <p className="mt-2 flex items-center gap-2 rounded-xl bg-surface-soft px-3 py-2 text-xs text-ink-soft">
+                <div className="mt-2 flex items-center gap-2">
+                  <p className="flex min-w-0 flex-1 items-center gap-2 rounded-xl bg-surface-soft px-3 py-2 text-xs text-ink-soft">
                     <KeyRound className="h-3.5 w-3.5 shrink-0" />
-                    Сурагчийн нэвтрэх код:{" "}
-                    <span className="font-mono font-bold text-ink">{s.loginCode}</span>
+                    <span className="truncate">
+                      Код:{" "}
+                      <span className="font-mono font-bold text-ink">
+                        {s.loginCode ?? "олгоогүй"}
+                      </span>
+                    </span>
                   </p>
-                )}
+                  {/* PIN мартах нь 8 настай хүүхдэд ЗААВАЛ болно. */}
+                  <ResetPin studentId={s.id} studentName={s.name} />
+                </div>
               </Card>
             ))}
           </div>

@@ -85,12 +85,37 @@ export async function verifyPin(pin: string, stored: string): Promise<boolean> {
 const CODE_ALPHABET = "ABCDEFGHJKLMNPQRTUVWXYZ2346789";
 const CODE_LENGTH = 6;
 
+/**
+ * Ангийн нэрийг латин болгоно: «3А» → «3A».
+ *
+ * ⚠️ Ангийн нэр кирилл («3А»), кодын үлдсэн хэсэг латин байдаг тул
+ * хольвол хүүхэд кодоо бичихдээ гар сольж байж чадна. Нэг цагаан толгой
+ * байх ёстой.
+ */
+const CYRILLIC_TO_LATIN: Record<string, string> = {
+  А: "A", Б: "B", В: "V", Г: "G", Д: "D", Е: "E", Ж: "J", З: "Z",
+  И: "I", Й: "I", К: "K", Л: "L", М: "M", Н: "N", О: "O", Ө: "U",
+  П: "P", Р: "R", С: "S", Т: "T", У: "U", Ү: "U", Ф: "F", Х: "H",
+  Ц: "C", Ч: "C", Ш: "S", Э: "E", Ю: "Y", Я: "Y",
+};
+
+export function latinPrefix(raw: string): string {
+  const out = raw
+    .toUpperCase()
+    .split("")
+    .map((ch) => CYRILLIC_TO_LATIN[ch] ?? ch)
+    .filter((ch) => /[A-Z0-9]/.test(ch))
+    .join("")
+    .slice(0, 4);
+  return out || "S";
+}
+
 export function generateLoginCode(prefix: string): string {
   let tail = "";
   for (let i = 0; i < CODE_LENGTH; i++) {
     tail += CODE_ALPHABET[randomInt(CODE_ALPHABET.length)];
   }
-  return `${prefix}-${tail}`;
+  return `${latinPrefix(prefix)}-${tail}`;
 }
 
 /** Санамсаргүй 4 оронтой PIN. Урд нь 0 байж болно. */

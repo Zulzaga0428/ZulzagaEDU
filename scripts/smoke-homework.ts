@@ -40,7 +40,8 @@ import {
   readInvite,
 } from "../src/server/invite/service";
 import { childrenOf } from "../src/server/auth/access";
-import { hashPin, verifyPin, isWeakPin, generateLoginCode } from "../src/server/auth/pin";
+import { addStudent, resetStudentPin } from "../src/server/students/service";
+import { hashPin, verifyPin, isWeakPin, generateLoginCode, latinPrefix } from "../src/server/auth/pin";
 import type { StudentHomeworkRow } from "../src/server/homework/service";
 
 let passed = 0;
@@ -415,6 +416,53 @@ async function main() {
     relation: "MOTHER",
   });
   check("сул PIN татгалзана", !weak.ok && weak.reason === "PIN_СУЛ");
+
+  console.log();
+  console.log("22. Сурагч нэмэх");
+  const added = await addStudent(asTeacher, klass.id, "  Тестийн   Шинэсурагч  ");
+  check("нэрийн илүү хоосон зай цэвэрлэгдэв", added.name === "Тестийн Шинэсурагч", added.name);
+  check(
+    "код латин угтвартай олгогдов",
+    added.loginCode.startsWith(latinPrefix(klass.name) + "-"),
+    added.loginCode,
+  );
+  check("PIN сул биш", !isWeakPin(added.pin), added.pin);
+
+  const signedIn = await signIn(added.loginCode, added.pin);
+  check("шинэ сурагч шууд нэвтэрлээ", signedIn.ok && signedIn.role === "STUDENT");
+  await refuses("өөр ангийн багш сурагч нэмэх", () =>
+    addStudent(asTeacher2, klass.id, "Болохгүй Хүн"),
+  );
+
+  console.log();
+  console.log("23. PIN шинэчлэх");
+  if (!signedIn.ok) throw new Error("нэвтэрсэнгүй");
+  const newStudentId = signedIn.userId;
+
+  const reset = await resetStudentPin(asTeacher, newStudentId);
+  check("код ХЭВЭЭР үлдэв", reset.loginCode === added.loginCode, reset.loginCode);
+  check("PIN өөрчлөгдөв", reset.pin !== added.pin);
+
+  const oldPin = await signIn(added.loginCode, added.pin);
+  check("хуучин PIN ажиллахаа болив", !oldPin.ok);
+  const freshPin = await signIn(reset.loginCode, reset.pin);
+  check("шинэ PIN ажиллав", freshPin.ok);
+
+  await refuses("өөр ангийн багш PIN шинэчлэх", () =>
+    resetStudentPin(asTeacher2, newStudentId),
+  );
+
+  // Түгжигдсэн сурагчийг PIN шинэчлэлт чөлөөлдөг эсэх.
+  for (let i = 0; i < 5; i++) await signIn(reset.loginCode, "0000");
+  const locked = await signIn(reset.loginCode, reset.pin);
+  check("буруу оролдлогын дараа түгжигдэв", !locked.ok);
+  const reset2 = await resetStudentPin(asTeacher, newStudentId);
+  const unlocked = await signIn(reset2.loginCode, reset2.pin);
+  check("PIN шинэчлэхэд түгжээ тайлагдав", unlocked.ok);
+
+  check("кирилл ангийн нэр латин болов", latinPrefix("3А") === "3A", latinPrefix("3А"));
+  check("кирилл Б латин B болов", latinPrefix("5Б") === "5B", latinPrefix("5Б"));
+  check("код бүхэлдээ латин", /^[A-Z0-9]+-[A-Z0-9]+$/.test(added.loginCode), added.loginCode);
 
   console.log(`\n${failed === 0 ? "✅" : "❌"} ${passed} зөв, ${failed} алдаа\n`);
   process.exit(failed === 0 ? 0 : 1);
