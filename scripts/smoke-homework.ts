@@ -681,11 +681,22 @@ async function main() {
     description: null,
     dueAt: endOfDayUb(todayUb()),
   });
+  // Хоёр дахь дуудалт — өдөрт нэг удаа гэсэн хамгаалалт ажиллах ёстой.
   const rem2 = await sendDueReminders();
   check(
-    "өнөөдрийнх маргаашийн сануулгад ороогүй",
-    rem2.students === rem.students,
-    rem2.students + " vs " + rem.students,
+    "өдөрт хоёр дахь удаа илгээхгүй",
+    rem2.alreadySent === true && rem2.students === 0,
+    rem2.alreadySent ? "давхардлаас сэргийлэв" : rem2.students + " илгээв",
+  );
+
+  // Маргааш болоход дахин илгээх ёстой.
+  const tomorrowRun = await sendDueReminders(
+    new Date(Date.now() + 24 * 3600 * 1000),
+  );
+  check(
+    "маргааш дахин илгээх боломжтой",
+    tomorrowRun.alreadySent !== true,
+    tomorrowRun.alreadySent ? "буруу хаагдав" : "нээлттэй",
   );
 
   await deleteHomework(asTeacher, dueTomorrow);

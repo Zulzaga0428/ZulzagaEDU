@@ -1,8 +1,10 @@
 import "server-only";
 import webpush from "web-push";
-import { and, eq, gte, inArray, isNotNull, lt } from "drizzle-orm";
+import { and, eq, gte, inArray, isNotNull, lt, sql } from "drizzle-orm";
 import { db } from "@/server/db";
+import { todayUb } from "@/server/homework/time";
 import {
+  auditLog,
   classMembers,
   classes,
   guardians,
@@ -19,6 +21,19 @@ import {
  * Хоёр нь тусдаа: мөр нь ҮРГЭЛЖ бичигдэнэ, илгээлт нь бүтэхгүй байж болно
  * (эцэг эх зөвшөөрөл өгөөгүй, iPhone дээр дэлгэцэн дээрээ нэмээгүй). Тиймээс
  * илгээлт бүтэлгүйтсэн нь үйлдлийг унагааж болохгүй.
+ *
+ * ⚠️ `notifications` хүснэгт нь **хүргэлтийн бүртгэл**, inbox БИШ. Түүнийг
+ * харуулдаг дэлгэц байхгүй бөгөөд байх ч ёсгүй:
+ *
+ *   · Мэдэгдэл бүрийн агуулга аль хэдийн нүүрэн дээр байдаг — шинэ даалгавар,
+ *     багшийн тэмдэглэл, зарлал бүгд тэнд харагдана. Inbox нь тэр мэдээллийг
+ *     хоёр дахь удаа, хоцрох боломжтой хэлбэрээр давтана.
+ *   · Inbox нэмэх нь энэ ангиллын аппуудыг үхүүлдэг «хоёр дахь хайрцаг» руу
+ *     хөтөлнө (`docs/DECISIONS.md` §15).
+ *
+ * Мөрүүд нь юунд хэрэгтэй вэ: хүргэлт ажиллаж байгаа эсэхийг шалгах, дараа
+ * нь «сүүлд харснаас хойш юу шинэ болсон» гэсэн тэмдэглэгээнд ашиглах
+ * боломжтой. Зөвхөн харуулах зориулалтаар шинэ дэлгэц бүү нэм.
  */
 
 let configured = false;
@@ -205,7 +220,28 @@ export async function notifyChecked(args: {
  */
 export async function sendDueReminders(
   now: Date = new Date(),
-): Promise<{ students: number; parents: number; skipped: number }> {
+): Promise<{ students: number; parents: number; skipped: number; alreadySent?: boolean }> {
+  /*
+    ⚠️ Өдөрт НЭГ удаа. Cron дахин оролдох, эсвэл гараар дуудах тохиолдол
+    гарна — тэр бүрд эцэг эх хоёр дахь мэдэгдэл авбал шууд «спам» гэж
+    үзнэ. Аудитын бичлэгээр өнөөдөр илгээсэн эсэхийг шалгана.
+  */
+  const ubToday = todayUb(now);
+  const [sentToday] = await db
+    .select({ id: auditLog.id })
+    .from(auditLog)
+    .where(
+      and(
+        eq(auditLog.action, "DUE_REMINDERS_SENT"),
+        sql`${auditLog.meta}->>'day' = ${ubToday}`,
+      ),
+    )
+    .limit(1);
+
+  if (sentToday) {
+    return { students: 0, parents: 0, skipped: 0, alreadySent: true };
+  }
+
   // Маргаашийн УБ-ын хугацаанд дуусах бүх хийгээгүй даалгавар.
   const ub = new Date(now.getTime() + 8 * 3600_000);
   const y = ub.getUTCFullYear();
@@ -235,7 +271,14 @@ export async function sendDueReminders(
       ),
     );
 
-  if (rows.length === 0) return { students: 0, parents: 0, skipped: 0 };
+  if (rows.length === 0) {
+    await db.insert(auditLog).values({
+      action: "DUE_REMINDERS_SENT",
+      targetType: "cron",
+      meta: { day: ubToday, students: 0, parents: 0 },
+    });
+    return { students: 0, parents: 0, skipped: 0 };
+  }
 
   // Сурагч бүрд хэдэн даалгавар үлдсэнийг тоолно.
   const perStudent = new Map<string, { count: number; name: string; schoolId: string }>();
@@ -282,6 +325,12 @@ export async function sendDueReminders(
     });
     parents += 1;
   }
+
+  await db.insert(auditLog).values({
+    action: "DUE_REMINDERS_SENT",
+    targetType: "cron",
+    meta: { day: ubToday, students, parents },
+  });
 
   return { students, parents, skipped: rows.length - perStudent.size };
 }

@@ -19,7 +19,6 @@ import {
   guardians,
   memberships,
   schools,
-  credentials,
   subjects,
   users,
 } from "../src/server/db/schema";
@@ -56,6 +55,14 @@ async function main() {
     returning u.id
   `);
   if (orphans.rowCount) console.log("Эзэнгүй хэрэглэгч цэвэрлэв:", orphans.rowCount);
+
+  // Сургууль устахад аудитын мөр `school_id = null` болоод үлддэг. Тэдгээрийн
+  // дотор cron-ийн «өнөөдөр илгээсэн» тэмдэглэгээ байвал дараагийн
+  // ажиллуулалт сануулга илгээхгүй өнгөрнө.
+  const stale = await db.execute(sql`
+    delete from audit_log where school_id is null returning id
+  `);
+  if (stale.rowCount) console.log("Эзэнгүй аудитын мөр цэвэрлэв:", stale.rowCount);
 
   const [school] = await db
     .insert(schools)
