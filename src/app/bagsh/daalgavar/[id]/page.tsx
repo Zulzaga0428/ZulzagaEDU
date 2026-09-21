@@ -88,6 +88,21 @@ export default async function HomeworkRosterPage({ params }: PageProps<"/bagsh/d
                 className="rounded-2xl border border-line bg-surface px-4 py-3"
               >
                 <p className="font-semibold text-ink">{r.name}</p>
+
+                {r.photos.length > 0 && (
+                  <div className="mt-2 flex gap-2 overflow-x-auto">
+                    {r.photos.map((id) => (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        key={id}
+                        src={`/api/file/${id}`}
+                        alt={`${r.name} — дэвтрийн зураг`}
+                        className="h-28 w-28 shrink-0 rounded-xl object-cover"
+                      />
+                    ))}
+                  </div>
+                )}
+
                 <form action={checkSubmissionAction} className="mt-2 flex gap-2">
                   <input type="hidden" name="homeworkId" value={id} />
                   <input type="hidden" name="submissionId" value={r.submissionId} />

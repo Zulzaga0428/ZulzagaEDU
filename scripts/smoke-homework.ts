@@ -33,6 +33,13 @@ import { groupByDue, parentHeadline, studentHeadline } from "../src/server/homew
 import { schoolOverview } from "../src/server/school/overview";
 import { sendDueReminders } from "../src/server/notify/push";
 import {
+  attachToSubmission,
+  deleteFile,
+  myAttachments,
+  readFileFor,
+  saveImage,
+} from "../src/server/files/storage";
+import {
   classAnnouncements,
   deleteAnnouncement,
   myAnnouncements,
@@ -753,6 +760,66 @@ async function main() {
   const st3 = await myAnnouncements(s0, 10);
   check("сургууль даяарх зарлал сурагчид хүрэв", st3.some((a) => a.id === schoolWide));
   await deleteAnnouncement(asManager, schoolWide);
+
+  console.log();
+  console.log("34. Дэвтрийн зураг");
+  // 1x1 PNG
+  const png = Buffer.from(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+    "base64",
+  );
+
+  const hwPhoto = await createHomework(asTeacher, {
+    classId: klass.id,
+    subjectId: null,
+    title: "Зурагтай даалгавар",
+    description: null,
+    dueAt: endOfDayUb(addDaysUb(todayUb(), 1)),
+  });
+
+  const shot = await saveImage(s0, new Uint8Array(png), "image/png");
+  check("зураг хадгалагдав", Boolean(shot.id) && shot.sizeBytes === png.length,
+    shot.sizeBytes + " байт");
+
+  await refuses("зураг биш файл", () =>
+    saveImage(s0, new Uint8Array([1, 2, 3]), "application/pdf"),
+  );
+  await refuses("хоосон файл", () => saveImage(s0, new Uint8Array(0), "image/png"));
+
+  await attachToSubmission(s0, hwPhoto, shot.id);
+  const attached = await myAttachments(s0, hwPhoto);
+  check("даалгаварт хавсрагдав", attached.includes(shot.id));
+
+  // Зураг илгээхэд автоматаар «хийсэн» болно — хүүхэд хоёр үйлдэл хийхгүй.
+  const afterUpload = (await myHomework(s0)).find((h) => h.id === hwPhoto);
+  check("зураг илгээхэд хийсэн болов", afterUpload?.status === "DONE",
+    afterUpload?.status ?? "?");
+
+  console.log();
+  console.log("35. Зураг харах эрх");
+  const byOwner = await readFileFor(s0, shot.id);
+  check("эзэн нь харав", byOwner.bytes.length === png.length);
+
+  const teacherSees = await readFileFor(asTeacher, shot.id);
+  check("ангийн багш харав", teacherSees.bytes.length === png.length);
+
+  await refuses("өөр ангийн багш харах", () => readFileFor(asTeacher2, shot.id));
+  await refuses("хамаагүй сурагч харах", () => readFileFor(s1, shot.id));
+  await refuses("эрхлэгч харах", () => readFileFor(asManager, shot.id));
+
+  const parentOfOwner = await db
+    .select({ id: guardians.parentUserId })
+    .from(guardians)
+    .where(and(eq(guardians.studentUserId, students[0].id), eq(guardians.status, "ACTIVE")))
+    .limit(1);
+  if (parentOfOwner.length > 0) {
+    const pv: Viewer = { userId: parentOfOwner[0].id, schoolId: school.id, role: "PARENT" };
+    const seen = await readFileFor(pv, shot.id);
+    check("эцэг эх нь харав", seen.bytes.length === png.length);
+  }
+
+  await deleteFile(shot.id);
+  await deleteHomework(asTeacher, hwPhoto);
 
   console.log(`\n${failed === 0 ? "✅" : "❌"} ${passed} зөв, ${failed} алдаа\n`);
   process.exit(failed === 0 ? 0 : 1);

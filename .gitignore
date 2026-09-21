@@ -43,3 +43,6 @@ next-env.d.ts
 # төсөл
 .railway/
 *.local
+
+# байршуулсан зураг (локал)
+.uploads/

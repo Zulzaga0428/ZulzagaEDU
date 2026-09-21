@@ -21,6 +21,8 @@ import { formatDueUb } from "@/server/homework/time";
 import { lessonName, myWeek, nextSchoolDay } from "@/server/schedule/service";
 import { myAnnouncements } from "@/server/announce/service";
 import { markDoneAction } from "./actions";
+import { PhotoUpload } from "@/components/photo-upload";
+import { myAttachments } from "@/server/files/storage";
 
 export const dynamic = "force-dynamic";
 
@@ -40,7 +42,15 @@ function subjectIcon(subject: string | null) {
   return { icon: NotebookPen, tint: "ягаан" as const };
 }
 
-function Task({ h, when }: { h: StudentHomeworkRow; when: string }) {
+function Task({
+  h,
+  when,
+  photos,
+}: {
+  h: StudentHomeworkRow;
+  when: string;
+  photos: string[];
+}) {
   const { icon, tint } = subjectIcon(h.subject);
   return (
     <Card>
@@ -60,13 +70,32 @@ function Task({ h, when }: { h: StudentHomeworkRow; when: string }) {
         </p>
       )}
 
-      <form action={markDoneAction} className="mt-3">
+      {photos.length > 0 && (
+        <div className="mt-3 flex gap-2 overflow-x-auto">
+          {photos.map((id) => (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              key={id}
+              src={`/api/file/${id}`}
+              alt="Илгээсэн зураг"
+              className="h-24 w-24 shrink-0 rounded-xl object-cover"
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Даалгавар цаасан дээр хийгддэг — дэлгэц рүү оруулахын оронд зурагдана. */}
+      <div className="mt-3">
+        <PhotoUpload homeworkId={h.id} />
+      </div>
+
+      <form action={markDoneAction} className="mt-2">
         <input type="hidden" name="homeworkId" value={h.id} />
         <button
           type="submit"
           className="w-full rounded-2xl bg-brand px-4 py-4 text-base font-extrabold text-brand-ink hover:bg-brand-strong"
         >
-          Хийчихлээ
+          Зураггүй хийчихлээ
         </button>
       </form>
     </Card>
@@ -100,6 +129,12 @@ export default async function StudentHome() {
   const notices = await myAnnouncements(viewer, 3);
 
   const g = groupByDue(items);
+  const pending = [...g.overdue, ...g.today, ...g.upcoming];
+  const photoMap = new Map<string, string[]>(
+    await Promise.all(
+      pending.map(async (h) => [h.id, await myAttachments(viewer, h.id)] as [string, string[]]),
+    ),
+  );
   const now = g.overdue.length + g.today.length;
   const finished = items.filter((h) => h.status !== "ASSIGNED");
   const firstName = (me?.name ?? "").trim().split(/\s+/).pop() ?? "";
@@ -140,10 +175,10 @@ export default async function StudentHome() {
           <SectionLabel>Одоо хийх</SectionLabel>
           <div className="space-y-3">
             {g.overdue.map((h) => (
-              <Task key={h.id} h={h} when={`${formatDueUb(h.dueAt)} хүртэл байсан`} />
+              <Task key={h.id} h={h} when={`${formatDueUb(h.dueAt)} хүртэл байсан`} photos={photoMap.get(h.id) ?? []} />
             ))}
             {g.today.map((h) => (
-              <Task key={h.id} h={h} when="өнөөдөр хүртэл" />
+              <Task key={h.id} h={h} when="өнөөдөр хүртэл" photos={photoMap.get(h.id) ?? []} />
             ))}
           </div>
         </section>
@@ -154,7 +189,7 @@ export default async function StudentHome() {
           <SectionLabel>Дараа</SectionLabel>
           <div className="space-y-3">
             {g.upcoming.map((h) => (
-              <Task key={h.id} h={h} when={`${formatDueUb(h.dueAt)} хүртэл`} />
+              <Task key={h.id} h={h} when={`${formatDueUb(h.dueAt)} хүртэл`} photos={photoMap.get(h.id) ?? []} />
             ))}
           </div>
         </section>

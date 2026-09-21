@@ -8,6 +8,7 @@ import {
   homework,
   homeworkSubmissions,
   subjects,
+  submissionAttachments,
   users,
 } from "@/server/db/schema";
 import { AccessError, childrenOf, teachesClass, type Viewer } from "@/server/auth/access";
@@ -136,6 +137,7 @@ export type SubmissionRow = {
   status: "ASSIGNED" | "DONE" | "CHECKED";
   markedDoneAt: Date | null;
   teacherNote: string | null;
+  photos: string[];
 };
 
 /**
@@ -173,7 +175,33 @@ export async function homeworkRoster(
     .where(eq(homeworkSubmissions.homeworkId, homeworkId))
     .orderBy(asc(homeworkSubmissions.status), asc(users.name));
 
-  return { title: hw.title, dueAt: hw.dueAt, classId: hw.classId, rows };
+  // Хавсаргасан зургуудыг НЭГ асуулгаар — мөр бүрд тусад нь асуувал
+  // 24 сурагчид 24 нэмэлт асуулга болно.
+  const ids = rows.map((r) => r.submissionId);
+  const attachments =
+    ids.length === 0
+      ? []
+      : await db
+          .select({
+            submissionId: submissionAttachments.submissionId,
+            fileId: submissionAttachments.fileId,
+          })
+          .from(submissionAttachments)
+          .where(inArray(submissionAttachments.submissionId, ids));
+
+  const bySubmission = new Map<string, string[]>();
+  for (const a of attachments) {
+    const cur = bySubmission.get(a.submissionId);
+    if (cur) cur.push(a.fileId);
+    else bySubmission.set(a.submissionId, [a.fileId]);
+  }
+
+  return {
+    title: hw.title,
+    dueAt: hw.dueAt,
+    classId: hw.classId,
+    rows: rows.map((r) => ({ ...r, photos: bySubmission.get(r.submissionId) ?? [] })),
+  };
 }
 
 export type StudentHomeworkRow = {
