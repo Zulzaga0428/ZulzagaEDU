@@ -1,11 +1,11 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { CalendarDays, Check } from "lucide-react";
 import { getViewer } from "@/server/auth/access";
 import { AppShell } from "@/components/app-shell";
 import { Card, Empty, SectionLabel } from "@/components/ui";
-import { CalendarDays } from "lucide-react";
 import { myClasses, schoolSubjects } from "@/server/homework/service";
-import { DAYS, MAX_PERIODS, teacherWeek } from "@/server/schedule/service";
+import { DAYS, MAX_PERIODS, lessonName, teacherWeek } from "@/server/schedule/service";
 import { saveWeekAction } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -13,11 +13,16 @@ export const dynamic = "force-dynamic";
 /**
  * Хичээлийн хуваарь оруулах дэлгэц.
  *
- * Энгийн сервер форм — JavaScript-гүйгээр ч ажиллана. Багш улиралд нэг удаа
- * бөглөдөг тул хурдан бөглөгддөг байх нь хурдан ачаалагдахаас чухал.
+ * Энгийн сервер форм — JavaScript-гүйгээр ч ажиллана.
  *
- * Зориуд ЖИЖИГ: огноо, улирал, ээлж, кабинет, багш солих байхгүй. Тэдгээрийг
- * оруулбал сургуулийн хуваарийн систем болж хувирна.
+ * ⚠️ Эхний хувилбарт хадгалсны дараа ЮУ Ч ӨӨРЧЛӨГДӨӨГҮЙ мэт харагддаг
+ * байлаа: сонгосон утгууд байрандаа үлддэг, баталгааны мэдэгдэл хуудасны
+ * дээд талд гардаг, гэтэл багш доод талын товчны дэргэд байдаг. Ажиллаж
+ * байгаа мөртөө «зүгээр refresh болоод байна» гэж харагдана.
+ *
+ * Тиймээс: дээд талд **одоо хадгалагдсан хуваарийн тойм** гарна (өөрчлөгдөхөд
+ * нүдэнд харагдана), товч нь **доод талд наалдсан** байна, баталгаа нь
+ * товчныхоо хажууд гарна.
  */
 export default async function SchedulePage({ searchParams }: PageProps<"/bagsh/hovaari">) {
   const viewer = await getViewer();
@@ -25,6 +30,7 @@ export default async function SchedulePage({ searchParams }: PageProps<"/bagsh/h
   if (viewer.role !== "TEACHER") redirect("/");
 
   const { hadgalsan } = await searchParams;
+  const justSaved = hadgalsan === "1";
 
   const [classList, subjectList] = await Promise.all([
     myClasses(viewer),
@@ -48,21 +54,53 @@ export default async function SchedulePage({ searchParams }: PageProps<"/bagsh/h
         ← Буцах
       </Link>
 
-      {hadgalsan && (
+      {justSaved && (
         <p
           role="status"
-          className="rounded-xl border border-line bg-role-parent px-4 py-3 text-sm font-semibold text-ink"
+          className="flex items-center gap-2 rounded-2xl border border-line bg-role-parent px-4 py-3 text-sm font-bold text-ink"
         >
-          Хуваарь хадгалагдлаа. Сурагч, эцэг эх хоёулаа харна.
+          <Check className="h-4 w-4 shrink-0 text-dot-parent" strokeWidth={3} />
+          Хадгалагдлаа. Сурагч, эцэг эх хоёулаа харна.
         </p>
       )}
+
+      {/*
+        Одоо хадгалагдсан зүйл. Хадгалахад энэ тойм өөрчлөгдөнө — багш үр
+        дүнг НҮДЭЭР хардаг, мэдэгдэл уншихаас илүү найдвартай.
+      */}
+      <section>
+        <SectionLabel>Одоогийн хуваарь</SectionLabel>
+        {current.length === 0 ? (
+          <Empty icon={CalendarDays}>Хараахан хадгалаагүй байна.</Empty>
+        ) : (
+          <Card>
+            <ul className="space-y-1.5">
+              {DAYS.map((dayName, i) => {
+                const forDay = current
+                  .filter((c) => c.dayOfWeek === i + 1)
+                  .sort((a, b) => a.period - b.period);
+                if (forDay.length === 0) return null;
+                return (
+                  <li key={dayName} className="flex gap-3 text-sm">
+                    <span className="w-14 shrink-0 font-bold text-ink-faint">{dayName}</span>
+                    <span className="text-ink">
+                      {forDay.map((l) => lessonName(l)).join(" · ")}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+            <p className="mt-3 text-xs text-ink-faint">Нийт {current.length} хичээл</p>
+          </Card>
+        )}
+      </section>
 
       {subjectList.length === 0 ? (
         <Empty icon={CalendarDays}>
           Хичээлийн жагсаалт хоосон байна. Эрхлэгчид хандана уу.
         </Empty>
       ) : (
-        <form action={saveWeekAction} className="space-y-4">
+        <form action={saveWeekAction} className="space-y-4 pb-24">
           <input type="hidden" name="classId" value={klass.id} />
 
           {DAYS.map((dayName, i) => {
@@ -100,16 +138,23 @@ export default async function SchedulePage({ searchParams }: PageProps<"/bagsh/h
             );
           })}
 
-          <button
-            type="submit"
-            className="w-full rounded-2xl bg-brand px-4 py-5 text-lg font-extrabold text-brand-ink shadow-[0_10px_24px_rgba(43,133,246,0.28)] hover:bg-brand-strong"
-          >
-            Хадгалах
-          </button>
-
-          <p className="text-center text-xs text-ink-faint">
-            Хоосон үлдээсэн цагт хичээл байхгүй гэж үзнэ.
-          </p>
+          {/* Товч нь үргэлж хүрэх зайд — 42 сонголтыг гүйлгэж дуусгах шаардлагагүй. */}
+          <div className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface/95 px-4 py-3 backdrop-blur">
+            <div className="mx-auto flex w-full max-w-[480px] items-center gap-3">
+              {justSaved && (
+                <span className="flex shrink-0 items-center gap-1 text-xs font-bold text-dot-parent">
+                  <Check className="h-4 w-4" strokeWidth={3} />
+                  Хадгалсан
+                </span>
+              )}
+              <button
+                type="submit"
+                className="flex-1 rounded-2xl bg-brand px-4 py-4 text-base font-extrabold text-brand-ink hover:bg-brand-strong"
+              >
+                Хадгалах
+              </button>
+            </div>
+          </div>
         </form>
       )}
     </AppShell>
