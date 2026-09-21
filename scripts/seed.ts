@@ -7,7 +7,7 @@
  * ⚠️ Энэ скрипт «zulzaga» slug-тай сургуулийг БҮХЭЛД НЬ УСТГААД дахин
  * үүсгэнэ. Зөвхөн хөгжүүлэлтийн санд ажиллуулна.
  */
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { db } from "../src/server/db";
 import {
   classMembers,
@@ -51,6 +51,16 @@ async function main() {
     console.log(`«${SCHOOL_SLUG}» сургууль байна — устгаж дахин үүсгэнэ.`);
     await db.delete(schools).where(eq(schools.slug, SCHOOL_SLUG));
   }
+
+  // Сургуулийг устгахад гишүүнчлэл нь цуг явна, харин `users` мөрүүд үлдэнэ —
+  // хүн сургуульд харьяалагддаггүй, гишүүнчлэлээрээ холбогддог. Тиймээс
+  // эзэнгүй үлдсэн хүмүүсийг цэвэрлэнэ, эс бөгөөс имэйл давхцаад seed унана.
+  const orphans = await db.execute(sql`
+    delete from users u
+    where not exists (select 1 from memberships m where m.user_id = u.id)
+    returning u.id
+  `);
+  if (orphans.rowCount) console.log("Эзэнгүй хэрэглэгч цэвэрлэв:", orphans.rowCount);
 
   const [school] = await db
     .insert(schools)
@@ -123,13 +133,18 @@ async function main() {
   console.log("Сурагч:", studentRows.length);
 
   // Эхний 6 сурагчид эцэг эх холбоно — нэг нь ЭХНИЙ БАГШ ӨӨРӨӨ (хоёр дүртэй хүн).
+  const PARENT_NAMES = [
+    "Цэрэндоржийн Оюунтуяа",
+    "Балданы Нэргүй",
+    "Ширэндэвийн Алтанцэцэг",
+    "Гомбын Сэлэнгэ",
+    "Дамдинсүрэнгийн Цэцэгмаа",
+  ];
+
   const parentRows = await db
     .insert(users)
     .values(
-      Array.from({ length: 5 }, (_, i) => ({
-        name: `${STUDENT_NAMES[i].split(" ")[0].replace(/ын$|ийн$|ы$/, "")}-ийн ээж`,
-        email: `etseg${i + 1}@zulzaga.test`,
-      })),
+      PARENT_NAMES.map((name, i) => ({ name, email: `etseg${i + 1}@zulzaga.test` })),
     )
     .returning();
 
