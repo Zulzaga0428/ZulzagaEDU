@@ -31,6 +31,7 @@ import {
 import { endOfDayUb, todayUb, addDaysUb } from "../src/server/homework/time";
 import { groupByDue, parentHeadline, studentHeadline } from "../src/server/homework/grouping";
 import { schoolOverview } from "../src/server/school/overview";
+import { sendDueReminders } from "../src/server/notify/push";
 import {
   addTeacher,
   assignTeacher,
@@ -586,12 +587,14 @@ async function main() {
 
   console.log();
   console.log("28. Ангид хуваарилах");
-  const newClassId = await createClass(asManager, "9Я", 5, currentAcademicYear());
+  // Тест давтан ажиллахад давхцахгүйн тулд нэр нь өвөрмөц.
+  const tmpClassName = "T" + String(Date.now()).slice(-5);
+  const newClassId = await createClass(asManager, tmpClassName, 5, currentAcademicYear());
   await assignTeacher(asManager, newClassId, asNewT.userId);
 
   const tList2 = await listTeachers(asManager);
   check("хуваарилсны дараа анги харагдав",
-    tList2.find((t) => t.id === asNewT.userId)?.classNames === "9Я",
+    tList2.find((t) => t.id === asNewT.userId)?.classNames === tmpClassName,
     tList2.find((t) => t.id === asNewT.userId)?.classNames ?? "?");
 
   // Одоо чадах ёстой.
@@ -627,6 +630,51 @@ async function main() {
   check("ангийн жагсаалтад шинэ анги орсон", cList.some((c) => c.id === newClassId));
   check("хичээлийн жилийн формат", /^\d{4}-\d{4}$/.test(currentAcademicYear()),
     currentAcademicYear());
+
+  console.log();
+  console.log("29. Маргаашийн сануулга");
+  // Маргааш дуусах даалгавар өгнө.
+  const dueTomorrow = await createHomework(asTeacher, {
+    classId: klass.id,
+    subjectId: null,
+    title: "Маргааш дуусна",
+    description: null,
+    dueAt: endOfDayUb(addDaysUb(todayUb(), 1)),
+  });
+  // Нэг сурагч хийчихнэ — түүнд сануулга очих ЁСГҮЙ.
+  await markDone(s0, dueTomorrow);
+
+  // Ангийн бодит бүрэлдэхүүнийг шууд уншина — тестийн эхэнд авсан жагсаалт
+  // хуучирсан байж болно (22-р шалгалтад сурагч нэмэгдсэн).
+  const rosterNow = await homeworkRoster(asTeacher, dueTomorrow);
+  const notDone = rosterNow.rows.filter((r) => r.status === "ASSIGNED").length;
+
+  const rem = await sendDueReminders();
+  check(
+    "хийгээгүй сурагчдад сануулга бэлдэв",
+    rem.students === notDone,
+    rem.students + " сануулга / " + notDone + " хийгээгүй",
+  );
+  check("хийсэн сурагч хасагдав", rem.students === rosterNow.rows.length - 1,
+    rosterNow.rows.length + " сурагчаас 1 нь хийсэн");
+  check("эцэг эхэд ч бэлдэв", rem.parents > 0, rem.parents + " эцэг эх");
+
+  // Өнөөдөр дуусах даалгавар маргаашийн сануулгад ОРОХГҮЙ.
+  await createHomework(asTeacher, {
+    classId: klass.id,
+    subjectId: null,
+    title: "Өнөөдөр дуусна",
+    description: null,
+    dueAt: endOfDayUb(todayUb()),
+  });
+  const rem2 = await sendDueReminders();
+  check(
+    "өнөөдрийнх маргаашийн сануулгад ороогүй",
+    rem2.students === rem.students,
+    rem2.students + " vs " + rem.students,
+  );
+
+  await deleteHomework(asTeacher, dueTomorrow);
 
   console.log(`\n${failed === 0 ? "✅" : "❌"} ${passed} зөв, ${failed} алдаа\n`);
   process.exit(failed === 0 ? 0 : 1);

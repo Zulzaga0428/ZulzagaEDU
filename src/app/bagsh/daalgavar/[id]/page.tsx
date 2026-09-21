@@ -91,6 +91,8 @@ export default async function HomeworkRosterPage({ params }: PageProps<"/bagsh/d
                 <form action={checkSubmissionAction} className="mt-2 flex gap-2">
                   <input type="hidden" name="homeworkId" value={id} />
                   <input type="hidden" name="submissionId" value={r.submissionId} />
+                  <input type="hidden" name="studentUserId" value={r.studentUserId} />
+                  <input type="hidden" name="title" value={title} />
                   <input
                     name="note"
                     maxLength={300}

@@ -11,7 +11,7 @@ import {
   myClasses,
 } from "@/server/homework/service";
 import { endOfDayUb } from "@/server/homework/time";
-import { notifyNewHomework } from "@/server/notify/push";
+import { notifyChecked, notifyNewHomework } from "@/server/notify/push";
 
 export async function createHomeworkAction(formData: FormData): Promise<void> {
   const viewer = await requireViewer();
@@ -64,12 +64,32 @@ export async function checkSubmissionAction(formData: FormData): Promise<void> {
     throw new Error("Дутуу утга.");
   }
 
+  const studentUserId = formData.get("studentUserId");
+  const title = formData.get("title");
+
   await checkSubmission(
     viewer,
     homeworkId,
     submissionId,
     typeof note === "string" ? note : null,
   );
+
+  // «Багш харлаа» гэдэг нь хүүхдийн хувьд шагнал — чимээгүй өнгөрвөл
+  // тэмдэглэхээ болино. Мэдэгдэл бүтэхгүй ч шалгалт нь аль хэдийн хадгалагдсан.
+  if (typeof studentUserId === "string" && typeof title === "string") {
+    try {
+      await notifyChecked({
+        schoolId: viewer.schoolId,
+        studentUserId,
+        homeworkId,
+        title,
+        note: typeof note === "string" && note.trim() ? note.trim() : null,
+      });
+    } catch (err) {
+      console.error("Шалгасан мэдэгдэл илгээхэд алдаа:", err);
+    }
+  }
+
   revalidatePath(`/bagsh/daalgavar/${homeworkId}`);
 }
 
