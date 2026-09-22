@@ -13,6 +13,7 @@ import {
   setAdultCredentials,
 } from "../src/server/auth/credentials";
 import { db } from "../src/server/db";
+import { DEFAULT_SUBJECTS } from "../src/server/school/defaults";
 import {
   classMembers,
   classes,
@@ -37,9 +38,27 @@ const STUDENT_NAMES = [
   "Батсайханы Тэгшжаргал", "Нямдоржийн Сарангэрэл", "Гантөмөрийн Батбилэг", "Ууганбаярын Хонгорзул",
 ];
 
-const SUBJECT_NAMES = ["Монгол хэл", "Математик", "Хүн ба орчин", "Англи хэл", "Дүрслэх урлаг", "Хөгжим"];
 
 async function main() {
+  /*
+    ⛔ Прод санд ажиллахаас татгалзана.
+
+    Энэ скрипт сургуулийг устгаж, эзэнгүй хэрэглэгч, аудитын мөрийг цэвэрлэдэг.
+    `npm run smoke` үүнийг эхэлж ажиллуулдаг бөгөөд тест нь сануулга илгээдэг —
+    прод дээр ажиллавал жинхэнэ эцэг эхчүүд рүү тест мэдэгдэл явж, оройн
+    жинхэнэ сануулгыг «өнөөдөр илгээсэн» гэж хааж орхино.
+
+    Прод дээрх демо өгөгдлийг шинэчлэх гэвэл ALLOW_PROD_SEED=1 гэж ил тавина.
+  */
+  const [{ db_name }] = (
+    await db.execute(sql`select current_database() as db_name`)
+  ).rows as { db_name: string }[];
+  if (db_name === "railway" && process.env.ALLOW_PROD_SEED !== "1") {
+    console.error("⛔ Прод сан («railway») дээр seed ажиллуулахгүй. .env.local-ийн DATABASE_URL-ийг шалга.");
+    process.exit(1);
+  }
+  console.log("Сан:", db_name);
+
   const existing = await db.select().from(schools).where(eq(schools.slug, SCHOOL_SLUG)).limit(1);
   if (existing.length > 0) {
     console.log(`«${SCHOOL_SLUG}» сургууль байна — устгаж дахин үүсгэнэ.`);
@@ -71,7 +90,7 @@ async function main() {
   console.log("Сургууль:", school.name);
 
   await db.insert(subjects).values(
-    SUBJECT_NAMES.map((name, i) => ({ schoolId: school.id, name, sortOrder: i })),
+    DEFAULT_SUBJECTS.map((name, i) => ({ schoolId: school.id, name, sortOrder: i })),
   );
 
   // Эрхлэгч ба багш нар — Google-ээр нэвтрэх хүмүүс тул имэйлтэй.

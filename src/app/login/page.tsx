@@ -87,7 +87,10 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
       </form>
 
       <p className="mt-4 text-center text-xs text-ink-faint">
-        PIN мартсан уу? Багшдаа хэлээрэй — шинээр өгнө.
+        PIN мартсан уу? Багшдаа хэлээрэй — шинээр өгнө.{" "}
+        <Link href="/tuslamj" className="font-bold text-brand hover:underline">
+          Заавар
+        </Link>
       </p>
 
       {devOn && accounts.length > 0 && (

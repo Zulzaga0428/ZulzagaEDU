@@ -146,6 +146,9 @@ export default async function LandingPage() {
 
       <footer className="relative z-10 mx-auto flex w-full max-w-5xl flex-col items-center gap-3 px-5 pb-7 text-sm text-ink-soft sm:flex-row sm:justify-between sm:px-8">
         <nav className="flex flex-wrap items-center justify-center gap-6">
+          <Link href="/tuslamj" className="hover:text-brand">
+            Тусламж
+          </Link>
           <Link href="/nuutslal" className="hover:text-brand">
             Нууцлал
           </Link>

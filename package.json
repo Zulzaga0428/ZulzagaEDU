@@ -12,7 +12,10 @@
     "db:studio": "drizzle-kit studio",
     "typecheck": "tsc --noEmit",
     "db:seed": "tsx --conditions=react-server --env-file=.env.local scripts/seed.ts",
-    "smoke": "npm run db:seed --silent && tsx --conditions=react-server --env-file=.env.local scripts/smoke-homework.ts"
+    "smoke": "npm run db:seed --silent && tsx --conditions=react-server --env-file=.env.local scripts/smoke-homework.ts",
+    "db:migrate:prod": "node --env-file=.env.local scripts/migrate-prod.mjs",
+    "school:create": "tsx --conditions=react-server --env-file=.env.local scripts/create-school.ts",
+    "school:create:prod": "node --env-file=.env.local scripts/run-prod.mjs scripts/create-school.ts"
   },
   "dependencies": {
     "drizzle-orm": "^0.45.2",

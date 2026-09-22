@@ -13,6 +13,7 @@ import {
   classes,
   credentials as credentialsTable,
   guardians,
+  memberships,
   schools,
   users,
 } from "../src/server/db/schema";
@@ -53,6 +54,7 @@ import {
   currentAcademicYear,
   listClasses,
   listTeachers,
+  resetTeacherPin,
   unassignTeacher,
 } from "../src/server/school/manage";
 import { signIn, issueStudentCredentials } from "../src/server/auth/credentials";
@@ -831,6 +833,61 @@ async function main() {
 
   await deleteFile(shot.id);
   await deleteHomework(asTeacher, hwPhoto);
+
+  console.log();
+  console.log("36. Сургууль хоорондын хана");
+  // Хоёр дахь сургууль, өөрийн эрхлэгчтэй.
+  const slugB = "tenant-b-" + String(Date.now()).slice(-6);
+  const [schoolB] = await db
+    .insert(schools)
+    .values({ name: "Өөр сургууль", slug: slugB })
+    .returning({ id: schools.id });
+  const [mgrB] = await db
+    .insert(users)
+    .values({ name: "Өөр Эрхлэгч" })
+    .returning({ id: users.id });
+  await db.insert(memberships).values({
+    userId: mgrB.id,
+    schoolId: schoolB.id,
+    role: "ACADEMIC_MANAGER",
+  });
+  const asMgrB: Viewer = { userId: mgrB.id, schoolId: schoolB.id, role: "ACADEMIC_MANAGER" };
+
+  const ovB = await schoolOverview(asMgrB);
+  check("өөр сургуулийн тойм хоосон", ovB.teachers === 0 && ovB.students === 0,
+    ovB.teachers + " багш, " + ovB.students + " сурагч");
+  check("өөр сургуулийн багш харагдахгүй", (await listTeachers(asMgrB)).length === 0);
+  check("өөр сургуулийн анги харагдахгүй", (await listClasses(asMgrB)).length === 0);
+
+  await refuses("өөр сургуулийн ангид багш хуваарилах", () =>
+    assignTeacher(asMgrB, klass.id, teacher.id),
+  );
+  await refuses("өөр сургуулийн ангид сурагч нэмэх", () =>
+    addStudent(asMgrB, klass.id, "Халдагч Хүүхэд"),
+  );
+  await refuses("өөр сургуулийн ангид зарлал бичих", () =>
+    postAnnouncement(asMgrB, { classId: klass.id, body: "Халдлага", audience: "ALL" }),
+  );
+  await refuses("өөр сургуулийн багшийн PIN шинэчлэх", () =>
+    resetTeacherPin(asMgrB, teacher.id),
+  );
+
+  // Хүүхдийн зураг — хамгийн эмзэг зүйл.
+  const hwX = await createHomework(asTeacher, {
+    classId: klass.id,
+    subjectId: null,
+    title: "Хана шалгах",
+    description: null,
+    dueAt: endOfDayUb(addDaysUb(todayUb(), 1)),
+  });
+  const shotX = await saveImage(s0, new Uint8Array(png), "image/png");
+  await attachToSubmission(s0, hwX, shotX.id);
+  await refuses("өөр сургуулийн эрхлэгч хүүхдийн зураг харах", () =>
+    readFileFor(asMgrB, shotX.id),
+  );
+  await deleteFile(shotX.id);
+  await deleteHomework(asTeacher, hwX);
+  await db.delete(schools).where(eq(schools.id, schoolB.id));
 
   console.log(`\n${failed === 0 ? "✅" : "❌"} ${passed} зөв, ${failed} алдаа\n`);
   process.exit(failed === 0 ? 0 : 1);
