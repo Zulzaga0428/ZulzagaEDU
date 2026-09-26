@@ -1,11 +1,11 @@
+import Link from "next/link";
 import { eq } from "drizzle-orm";
 import { LogOut } from "lucide-react";
 import { db } from "@/server/db";
 import { schools, users } from "@/server/db/schema";
-import { rolesOf, type Viewer } from "@/server/auth/access";
+import { type Viewer } from "@/server/auth/access";
 import { ROLE_LABEL } from "@/server/auth/roles";
 import { signOut } from "@/app/login/actions";
-import { switchRole } from "@/app/actions";
 import { EnableNotifications } from "@/components/enable-notifications";
 import { BottomNav } from "@/components/bottom-nav";
 import { publicVapidKey } from "@/server/notify/push";
@@ -34,13 +34,13 @@ export async function AppShell({
   children: React.ReactNode;
   wide?: boolean;
 }) {
-  const [[me], [school], roles] = await Promise.all([
+  // Дүрийн жагсаалтыг энд уншихаа больсон — профайл өөрөө уншина. Дэлгэц
+  // бүрд нэмэлт асуулга явуулах шалтгаан алга.
+  const [[me], [school]] = await Promise.all([
     db.select({ name: users.name }).from(users).where(eq(users.id, viewer.userId)).limit(1),
     db.select({ name: schools.name }).from(schools).where(eq(schools.id, viewer.schoolId)).limit(1),
-    rolesOf(viewer.userId, viewer.schoolId),
   ]);
 
-  const otherRoles = roles.filter((r) => r !== viewer.role);
   const initial = (me?.name ?? "?").trim().split(/\s+/).pop()?.[0] ?? "?";
 
   // Доод nav зөвхөн багшид. Түүний доор агуулга нуугдахгүйн тулд зай нэмнэ.
@@ -65,13 +65,15 @@ export async function AppShell({
           </span>
 
           <span className="flex items-center gap-2">
-            <span
-              aria-hidden
+            {/* Нэрийн дугуй бол профайл руу орох зам — бүх дүрд, бүх дэлгэцээс. */}
+            <Link
+              href="/profil"
+              aria-label="Миний хуудас"
               title={me?.name ?? ""}
-              className="flex h-9 w-9 items-center justify-center rounded-full bg-warn-bg text-sm font-extrabold text-accent"
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-warn-bg text-sm font-extrabold text-accent ring-offset-2 hover:ring-2 hover:ring-brand"
             >
               {initial}
-            </span>
+            </Link>
             <form action={signOut}>
               <button
                 type="submit"
@@ -91,22 +93,10 @@ export async function AppShell({
         {subtitle && <p className="mt-1 text-sm text-ink-soft">{subtitle}</p>}
         <p className="mt-2 text-xs text-ink-faint">{school?.name ?? ""}</p>
 
-        {otherRoles.length > 0 && (
-          <nav aria-label="Дүр сэлгэх" className="mt-4 flex flex-wrap items-center gap-2">
-            <span className="text-xs text-ink-soft">Өөр дүрээр:</span>
-            {otherRoles.map((role) => (
-              <form action={switchRole} key={role}>
-                <input type="hidden" name="role" value={role} />
-                <button
-                  type="submit"
-                  className="rounded-full bg-surface-soft px-3 py-1 text-xs font-bold text-brand hover:bg-role-teacher"
-                >
-                  {ROLE_LABEL[role]}
-                </button>
-              </form>
-            ))}
-          </nav>
-        )}
+        {/*
+          Дүр сэлгэх нь одоо профайл дээр (`/profil`). Энд давхардуулбал
+          дэлгэц бүрийн толгойд ховор хэрэглэдэг товч сууна.
+        */}
       </header>
 
       <EnableNotifications vapidKey={publicVapidKey()} />

@@ -77,6 +77,7 @@ import {
 import { schoolSubjects } from "../src/server/homework/service";
 import { hashPin, verifyPin, isWeakPin, generateLoginCode, latinPrefix } from "../src/server/auth/pin";
 import type { StudentHomeworkRow } from "../src/server/homework/service";
+import { myProfile, changeOwnPin } from "../src/server/profile/service";
 
 let passed = 0;
 let failed = 0;
@@ -888,6 +889,55 @@ async function main() {
   await deleteFile(shotX.id);
   await deleteHomework(asTeacher, hwX);
   await db.delete(schools).where(eq(schools.id, schoolB.id));
+
+  console.log();
+  console.log("37. Профайл ба PIN солих");
+  {
+    const prof = await myProfile(s0);
+    check("сурагч өөрийн нэрийг харав", prof.name === students[0].name, prof.name);
+    check("сурагчид нэвтрэх код харагдав", Boolean(prof.loginCode), prof.loginCode ?? "алга");
+    check("сурагчид утасны дугаар харагдахгүй", prof.phone === null);
+    check("сурагчийн анги харагдав", prof.classes.length === 1, prof.classes[0]?.name);
+
+    const parentProf = await myProfile({
+      userId: link.parentId,
+      schoolId: school.id,
+      role: "PARENT",
+    });
+    check("эцэг эхэд хүүхэд нь харагдав", parentProf.children.some((c) => c.id === link.childId));
+    check("эцэг эхэд нэвтрэх код харагдахгүй", parentProf.loginCode === null);
+    check(
+      "эцэг эхэд ӨӨРИЙН хүүхэд л харагдана",
+      parentProf.children.every((c) => c.id === link.childId),
+      `${parentProf.children.length} хүүхэд`,
+    );
+
+    const teacherProf = await myProfile(asTeacher);
+    check("багшид хариуцсан анги харагдав", teacherProf.classes.length > 0);
+
+    // PIN солих — буруу оролдлогууд юу ч өөрчлөх ёсгүй.
+    const wrong = await changeOwnPin(s0, "0000", "5137");
+    check("одоогийн PIN буруу бол татгалзав", !wrong.ok && wrong.reason === "ОДООГИЙН_БУРУУ");
+    check("буруу оролдлогын дараа хуучин PIN хэвээр", (await signIn(prof.loginCode!, "2648")).ok);
+
+    const weak = await changeOwnPin(s0, "2648", "1111");
+    check("хэт амархан PIN татгалзав", !weak.ok && weak.reason === "ХЭТ_АМАРХАН");
+
+    const same = await changeOwnPin(s0, "2648", "2648");
+    check("ижил PIN татгалзав", !same.ok && same.reason === "ИЖИЛ");
+
+    const short = await changeOwnPin(s0, "2648", "12");
+    check("4 оронтой биш PIN татгалзав", !short.ok && short.reason === "ФОРМАТ");
+
+    const ok = await changeOwnPin(s0, "2648", "5137");
+    check("зөв PIN солигдов", ok.ok);
+    check("шинэ PIN-ээр нэвтэрнэ", (await signIn(prof.loginCode!, "5137")).ok);
+    check("хуучин PIN-ээр нэвтрэхгүй", !(await signIn(prof.loginCode!, "2648")).ok);
+
+    // Seed-ийн PIN-д буцааж үлдээнэ — дараагийн тест, гараар шалгалт эндүүрэхгүйн тулд.
+    await changeOwnPin(s0, "5137", "2648");
+    check("seed-ийн PIN сэргэв", (await signIn(prof.loginCode!, "2648")).ok);
+  }
 
   console.log(`\n${failed === 0 ? "✅" : "❌"} ${passed} зөв, ${failed} алдаа\n`);
   process.exit(failed === 0 ? 0 : 1);
