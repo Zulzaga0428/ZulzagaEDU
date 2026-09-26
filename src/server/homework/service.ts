@@ -98,6 +98,13 @@ export type HomeworkRow = {
   dueAt: Date;
   total: number;
   done: number;
+  /**
+   * Хийсэн ч багш хараагүй сурагчдын тоо.
+   *
+   * `done` нь шалгасныг ч тооцдог тул «шалгах юм үлдсэн үү» гэдгийг түүгээр
+   * хэмжиж болохгүй. Багшийн нүүрэн дээрх «Шалгах» тоо энэ талбараас гарна.
+   */
+  toCheck: number;
 };
 
 /** Багшийн ангийн даалгаврууд, шинэ нь эхэндээ. */
@@ -122,6 +129,10 @@ export async function listClassHomework(
       done: sql<number>`(
         select count(*)::int from ${homeworkSubmissions} s
         where s.homework_id = ${homework.id} and s.status <> 'ASSIGNED'
+      )`,
+      toCheck: sql<number>`(
+        select count(*)::int from ${homeworkSubmissions} s
+        where s.homework_id = ${homework.id} and s.status = 'DONE'
       )`,
     })
     .from(homework)

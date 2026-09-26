@@ -7,6 +7,7 @@ import { ROLE_LABEL } from "@/server/auth/roles";
 import { signOut } from "@/app/login/actions";
 import { switchRole } from "@/app/actions";
 import { EnableNotifications } from "@/components/enable-notifications";
+import { BottomNav } from "@/components/bottom-nav";
 import { publicVapidKey } from "@/server/notify/push";
 
 /**
@@ -42,8 +43,15 @@ export async function AppShell({
   const otherRoles = roles.filter((r) => r !== viewer.role);
   const initial = (me?.name ?? "?").trim().split(/\s+/).pop()?.[0] ?? "?";
 
+  // Доод nav зөвхөн багшид. Түүний доор агуулга нуугдахгүйн тулд зай нэмнэ.
+  const hasNav = viewer.role === "TEACHER";
+
   return (
-    <div className={`mx-auto w-full ${wide ? "max-w-5xl" : "max-w-[480px]"} px-4 pb-16 pt-4`}>
+    <div
+      className={`mx-auto w-full ${wide ? "max-w-5xl" : "max-w-[480px]"} px-4 pt-4 ${
+        hasNav ? "pb-28" : "pb-16"
+      }`}
+    >
       <header className="rounded-3xl border border-line bg-surface p-5 shadow-[0_1px_2px_rgba(18,38,63,0.04)]">
         <div className="flex items-center justify-between gap-3">
           <span className="flex items-center gap-2">
@@ -104,6 +112,8 @@ export async function AppShell({
       <EnableNotifications vapidKey={publicVapidKey()} />
 
       <main className="mt-5 space-y-6">{children}</main>
+
+      {hasNav && <BottomNav />}
     </div>
   );
 }

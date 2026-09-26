@@ -161,8 +161,12 @@ export default async function SchedulePage({ searchParams }: PageProps<"/bagsh/h
             );
           })}
 
-          {/* Товч нь үргэлж хүрэх зайд — 42 сонголтыг гүйлгэж дуусгах шаардлагагүй. */}
-          <div className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface/95 px-4 py-3 backdrop-blur">
+          {/*
+            Товч нь үргэлж хүрэх зайд — 42 сонголтыг гүйлгэж дуусгах
+            шаардлагагүй. Доод nav-ын ЯГ ДЭЭР суух ёстой: `bottom-0` үлдээвэл
+            nav-ыг бүрэн дарж, багш хуваариас гарч чадахгүй болно.
+          */}
+          <div className="fixed inset-x-0 bottom-[calc(3.75rem+env(safe-area-inset-bottom))] z-40 border-t border-line bg-surface/95 px-4 py-3 backdrop-blur">
             <div className="mx-auto flex w-full max-w-[480px] items-center gap-3">
               {justSaved && (
                 <span className="flex shrink-0 items-center gap-1 text-xs font-bold text-dot-parent">
@@ -178,6 +182,9 @@ export default async function SchedulePage({ searchParams }: PageProps<"/bagsh/h
               </button>
             </div>
           </div>
+
+          {/* Хамгийн сүүлийн сонголт хоёр самбарын доор нуугдахгүйн тулд. */}
+          <div aria-hidden className="h-16" />
         </form>
       )}
     </AppShell>

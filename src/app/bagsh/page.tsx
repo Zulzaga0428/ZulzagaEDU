@@ -29,8 +29,12 @@ export default async function TeacherHome() {
   );
 
   const all = perClass.flatMap((p) => p.items);
-  const waiting = all.filter((h) => h.done > 0 && h.done < h.total).length;
   const needsAttention = all.filter((h) => isOverdue(h.dueAt) && h.done < h.total);
+
+  // Хийсэн ч багш хараагүй ажлын тоо. Өмнө нь «хэсэгчлэн хийгдсэн даалгаврын
+  // тоо»-г харуулж байсан нь шалгах ажилтай огт хамаагүй тоо байв.
+  const waiting = all.reduce((n, h) => n + h.toCheck, 0);
+  const nextToCheck = all.find((h) => h.toCheck > 0);
 
   return (
     <AppShell
@@ -165,13 +169,20 @@ export default async function TeacherHome() {
       {all.length > 0 && (
         <section>
           <SectionLabel>Өнөөдрийн ажил</SectionLabel>
+          {/*
+            Товш болохгүй мөр байв — багш дарж үзээд юу ч болохгүй. Шалгах юм
+            байвал хамгийн ойрын даалгавар руу аваачна, байхгүй бол товшихгүй.
+          */}
           <Row
             icon={ClipboardCheck}
             tint="цэнхэр"
             title="Даалгавар шалгах"
             subtitle={
-              waiting > 0 ? `${waiting} даалгаварт хүлээгдэж байна` : "Хүлээгдэж байгаа зүйл алга"
+              waiting > 0
+                ? `${waiting} сурагчийн ажил хүлээгдэж байна`
+                : "Хүлээгдэж байгаа зүйл алга"
             }
+            href={nextToCheck ? `/bagsh/daalgavar/${nextToCheck.id}` : undefined}
             trailing={
               <span className="rounded-full bg-surface-soft px-2.5 py-0.5 text-sm font-bold text-brand">
                 {waiting}
