@@ -29,6 +29,13 @@
       "when": 1789967140235,
       "tag": "0003_add_lessons",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1790523523588,
+      "tag": "0004_teacher_incentives",
+      "breakpoints": true
     }
   ]
 }

@@ -66,3 +66,6 @@ export const notificationKind = pgEnum("notification_kind", [
   "ANNOUNCEMENT",
   "GUARDIAN_VERIFIED",
 ]);
+
+/** Багшийн пилотын хөлсний төлөв. Эрхлэгч л өөрчилнө. */
+export const incentiveStatus = pgEnum("incentive_status", ["PENDING", "PAID", "CANCELLED"]);

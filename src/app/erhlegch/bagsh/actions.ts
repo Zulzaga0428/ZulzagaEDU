@@ -10,6 +10,12 @@ import {
   resetTeacherPin,
   unassignTeacher,
 } from "@/server/school/manage";
+import {
+  PILOT_AMOUNT_MNT,
+  cancelIncentive,
+  enrollTeacher,
+  markPaid,
+} from "@/server/incentive/service";
 
 /** Багш нэмнэ. PIN-ийг буцаана — нэг л удаа харагдана. */
 export async function addTeacherAction(
@@ -62,4 +68,46 @@ export async function unassignTeacherAction(formData: FormData): Promise<void> {
 
   await unassignTeacher(viewer, classId, teacherUserId);
   revalidatePath("/erhlegch/bagsh");
+}
+
+/**
+ * Багшийг энэ сарын пилотын хөлсөнд бүртгэнэ.
+ *
+ * `docs/DECISIONS.md` §14 — «3 багшид хөлс өгнө, хэнийг оролцуулахыг та
+ * шийднэ». Эрхлэгч бүртгэх хүртэл багш мөнгөний тухай юу ч харахгүй.
+ */
+export async function enrollIncentiveAction(formData: FormData): Promise<void> {
+  const viewer = await requireViewer();
+  const teacherUserId = formData.get("teacherUserId");
+  const amount = formData.get("amountMnt");
+  if (typeof teacherUserId !== "string") throw new Error("Дутуу утга.");
+
+  const amountMnt =
+    typeof amount === "string" && amount !== "" ? Number(amount) : PILOT_AMOUNT_MNT;
+
+  await enrollTeacher(viewer, teacherUserId, amountMnt);
+  revalidatePath("/erhlegch/bagsh");
+  revalidatePath("/bagsh");
+}
+
+/** «Олголоо» гэж тэмдэглэнэ. Мөнгийг апп шилжүүлдэггүй — зөвхөн бүртгэнэ. */
+export async function markIncentivePaidAction(formData: FormData): Promise<void> {
+  const viewer = await requireViewer();
+  const id = formData.get("incentiveId");
+  if (typeof id !== "string") throw new Error("Дутуу утга.");
+
+  await markPaid(viewer, id);
+  revalidatePath("/erhlegch/bagsh");
+  revalidatePath("/bagsh");
+}
+
+/** Буруу бүртгэсэн бол цуцална — багшийн картаас алга болно. */
+export async function cancelIncentiveAction(formData: FormData): Promise<void> {
+  const viewer = await requireViewer();
+  const id = formData.get("incentiveId");
+  if (typeof id !== "string") throw new Error("Дутуу утга.");
+
+  await cancelIncentive(viewer, id);
+  revalidatePath("/erhlegch/bagsh");
+  revalidatePath("/bagsh");
 }

@@ -1,12 +1,25 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { GraduationCap, School, TriangleAlert } from "lucide-react";
+import { GraduationCap, School, TriangleAlert, Wallet } from "lucide-react";
 import { getViewer } from "@/server/auth/access";
 import { AppShell } from "@/components/app-shell";
 import { Card, Empty, IconBox, SectionLabel } from "@/components/ui";
 import { AddTeacher, ResetTeacherPin } from "@/components/teacher-admin";
 import { listClasses, listTeachers } from "@/server/school/manage";
-import { assignTeacherAction, createClassAction, unassignTeacherAction } from "./actions";
+import {
+  assignTeacherAction,
+  cancelIncentiveAction,
+  createClassAction,
+  enrollIncentiveAction,
+  markIncentivePaidAction,
+  unassignTeacherAction,
+} from "./actions";
+import {
+  PILOT_AMOUNT_MNT,
+  currentPeriod,
+  periodLabel,
+  schoolIncentives,
+} from "@/server/incentive/service";
 
 export const dynamic = "force-dynamic";
 
@@ -22,8 +35,21 @@ export default async function ManageTeachersPage() {
   if (!viewer) redirect("/login");
   if (viewer.role !== "ACADEMIC_MANAGER") redirect("/");
 
-  const [teachers, classList] = await Promise.all([listTeachers(viewer), listClasses(viewer)]);
+  const [teachers, classList, incentives] = await Promise.all([
+    listTeachers(viewer),
+    listClasses(viewer),
+    schoolIncentives(viewer),
+  ]);
   const unassigned = teachers.filter((t) => t.classNames === "");
+  const label = periodLabel(currentPeriod());
+
+  // Багш бүрийн энэ сарын мөр — байхгүй бол бүртгэх товч гарна.
+  const byTeacher = new Map(incentives.map((i) => [i.teacherUserId, i]));
+  const enrolled = incentives.filter((i) => i.status !== "CANCELLED");
+  const totalMnt = enrolled.reduce((n, i) => n + i.amountMnt, 0);
+  const paidMnt = enrolled
+    .filter((i) => i.status === "PAID")
+    .reduce((n, i) => n + i.amountMnt, 0);
 
   return (
     <AppShell
@@ -64,6 +90,23 @@ export default async function ManageTeachersPage() {
         </Card>
       </section>
 
+      {enrolled.length > 0 && (
+        <Card>
+          <div className="flex items-center gap-3">
+            <IconBox icon={Wallet} tint="шар" />
+            <div className="min-w-0 flex-1">
+              <p className="font-extrabold text-ink">
+                {label} · {totalMnt.toLocaleString("mn-MN")}₮
+              </p>
+              <p className="text-xs text-ink-faint">
+                {enrolled.length} багш бүртгэгдсэн · {paidMnt.toLocaleString("mn-MN")}₮
+                олгосон · {(totalMnt - paidMnt).toLocaleString("mn-MN")}₮ үлдсэн
+              </p>
+            </div>
+          </div>
+        </Card>
+      )}
+
       <section>
         <SectionLabel>Багш нар · {teachers.length}</SectionLabel>
         {teachers.length === 0 ? (
@@ -86,6 +129,76 @@ export default async function ManageTeachersPage() {
                     </p>
                   </div>
                   <ResetTeacherPin teacherId={t.id} name={t.name} />
+                </div>
+
+                {/*
+                  Пилотын хөлс (`docs/DECISIONS.md` §14). Хэн оролцохыг
+                  эрхлэгч шийднэ — тиймээс бүртгэх товч энд, багшийн талд биш.
+                */}
+                <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-line pt-3">
+                  {(() => {
+                    const inc = byTeacher.get(t.id);
+                    if (!inc || inc.status === "CANCELLED") {
+                      return (
+                        <form action={enrollIncentiveAction} className="flex items-center gap-2">
+                          <input type="hidden" name="teacherUserId" value={t.id} />
+                          <span className="text-xs text-ink-faint">{label} хөлс:</span>
+                          <input
+                            name="amountMnt"
+                            type="number"
+                            /*
+                              ⚠️ `step` бүү нэм. `min={1} step={1000}` үед
+                              зөвшөөрөгдөх утга 1, 1001, 2001… болж 50,000 нь
+                              ХҮЧИНГҮЙ болно — хөтөч формыг илгээхгүй.
+                            */
+                            min={1000}
+                            defaultValue={PILOT_AMOUNT_MNT}
+                            className="w-28 rounded-lg border border-line bg-surface px-2.5 py-1.5 text-sm text-ink"
+                          />
+                          <button
+                            type="submit"
+                            className="rounded-lg border border-line px-3 py-1.5 text-xs font-bold text-brand hover:border-brand"
+                          >
+                            Бүртгэх
+                          </button>
+                        </form>
+                      );
+                    }
+                    return (
+                      <>
+                        <span
+                          className={`rounded-full px-2.5 py-1 text-xs font-bold ${
+                            inc.status === "PAID"
+                              ? "bg-role-parent text-ink"
+                              : "bg-warn-bg text-accent"
+                          }`}
+                        >
+                          {label} · {inc.amountMnt.toLocaleString("mn-MN")}₮ ·{" "}
+                          {inc.status === "PAID" ? "олгосон" : "хүлээгдэж байна"}
+                        </span>
+                        {inc.status === "PENDING" && (
+                          <form action={markIncentivePaidAction}>
+                            <input type="hidden" name="incentiveId" value={inc.id} />
+                            <button
+                              type="submit"
+                              className="rounded-lg bg-brand px-3 py-1.5 text-xs font-bold text-brand-ink hover:bg-brand-strong"
+                            >
+                              Олголоо
+                            </button>
+                          </form>
+                        )}
+                        <form action={cancelIncentiveAction}>
+                          <input type="hidden" name="incentiveId" value={inc.id} />
+                          <button
+                            type="submit"
+                            className="rounded-lg border border-line px-3 py-1.5 text-xs font-bold text-ink-faint hover:border-accent hover:text-accent"
+                          >
+                            Цуцлах
+                          </button>
+                        </form>
+                      </>
+                    );
+                  })()}
                 </div>
               </Card>
             ))}

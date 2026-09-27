@@ -3,8 +3,10 @@ import { redirect } from "next/navigation";
 import {
   BookOpen,
   CalendarDays,
+  BadgeCheck,
   ClipboardCheck,
   Plus,
+  Wallet,
   TriangleAlert,
   Megaphone,
   UserPlus,
@@ -14,6 +16,7 @@ import { getViewer } from "@/server/auth/access";
 import { AppShell } from "@/components/app-shell";
 import { Bar, Card, Empty, FeatureCard, Row, SectionLabel, StatTile } from "@/components/ui";
 import { listClassHomework, myClasses } from "@/server/homework/service";
+import { myIncentive } from "@/server/incentive/service";
 import { formatDueUb, isOverdue } from "@/server/homework/time";
 
 export const dynamic = "force-dynamic";
@@ -23,7 +26,7 @@ export default async function TeacherHome() {
   if (!viewer) redirect("/login");
   if (viewer.role !== "TEACHER") redirect("/");
 
-  const classList = await myClasses(viewer);
+  const [classList, incentive] = await Promise.all([myClasses(viewer), myIncentive(viewer)]);
   const perClass = await Promise.all(
     classList.map(async (c) => ({ klass: c, items: await listClassHomework(viewer, c.id) })),
   );
@@ -192,9 +195,30 @@ export default async function TeacherHome() {
         </section>
       )}
 
-      {classList.length > 0 && (
-        <FeatureCard icon={Users} tint="ногоон" eyebrow="Энэ долоо хоногт" title="Ангидаа тавтай морил">
-          {classList.map((c) => c.name).join(", ")} ангийн сурагчид таны даалгаврыг хүлээж байна.
+      {/*
+        Пилотын хөлс (`docs/DECISIONS.md` §14). Эрхлэгч бүртгээгүй багшид
+        огт гарахгүй — сургуулийн бүх багшид мөнгө амлахгүйн тулд.
+
+        ⚠️ Энд хэрэглээний тоо БИЧИХГҮЙ. Хөлс нь саналын төлөө, даалгаврын
+        тоотой холбовол багш нар тоо гүйцээж эхэлнэ.
+      */}
+      {incentive && (
+        <FeatureCard
+          icon={incentive.status === "PAID" ? BadgeCheck : Wallet}
+          tint={incentive.status === "PAID" ? "ногоон" : "шар"}
+          eyebrow={`${incentive.periodLabel} · пилотын хөлс`}
+          title={`${incentive.amountMnt.toLocaleString("mn-MN")}₮`}
+        >
+          {incentive.status === "PAID" ? (
+            <>
+              Олгогдсон. Баярлалаа — таны санал энэ аппыг сайжруулж байна.
+            </>
+          ) : (
+            <>
+              Долоо хоног бүр 15 минут ярилцаж, юу ажиллахгүй байгааг хэлэхэд
+              сарын эцэст эрхлэгчээр дамжуулан олгоно.
+            </>
+          )}
         </FeatureCard>
       )}
     </AppShell>

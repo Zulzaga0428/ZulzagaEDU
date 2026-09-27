@@ -12,6 +12,7 @@ import {
   classMembers,
   classes,
   credentials as credentialsTable,
+  teacherIncentives,
   guardians,
   memberships,
   schools,
@@ -79,6 +80,13 @@ import { hashPin, verifyPin, isWeakPin, generateLoginCode, latinPrefix } from ".
 import type { StudentHomeworkRow } from "../src/server/homework/service";
 import { myProfile, changeOwnPin } from "../src/server/profile/service";
 import { attachToHomework, homeworkFiles } from "../src/server/files/storage";
+import {
+  cancelIncentive,
+  enrollTeacher,
+  markPaid,
+  myIncentive,
+  schoolIncentives,
+} from "../src/server/incentive/service";
 
 let passed = 0;
 let failed = 0;
@@ -941,6 +949,56 @@ async function main() {
 
     await deleteHomework(asTeacher, hwB);
     await deleteFile(board.id);
+  }
+
+  console.log();
+  console.log("39. Багшийн пилотын хөлс");
+  {
+    // Эрхлэгч бүртгэх хүртэл багш юу ч харахгүй — бүх багшид мөнгө амлахгүй.
+    check("бүртгээгүй багш карт харахгүй", (await myIncentive(asTeacher)) === null);
+
+    await enrollTeacher(asManager, teacher.id);
+    const mine = await myIncentive(asTeacher);
+    check("бүртгэсний дараа карт гарав", mine?.amountMnt === 50000, mine?.amountMnt + "₮");
+    check("төлөв нь хүлээгдэж байна", mine?.status === "PENDING");
+    check("сарын шошго зөв", /сар$/.test(mine?.periodLabel ?? ""), mine?.periodLabel);
+
+    // Өөр багш бүртгэгдээгүй тул түүнд юу ч харагдахгүй.
+    check("хөрш багш карт харахгүй", (await myIncentive(asTeacher2)) === null);
+
+    const list = await schoolIncentives(asManager);
+    check("эрхлэгчийн жагсаалтад орлоо", list.some((i) => i.teacherUserId === teacher.id));
+
+    const row = list.find((i) => i.teacherUserId === teacher.id)!;
+    await markPaid(asManager, row.id);
+    check("олгосон гэж тэмдэглэв", (await myIncentive(asTeacher))?.status === "PAID");
+    check("олгосон огноо бичигдэв", (await myIncentive(asTeacher))?.paidAt instanceof Date);
+
+    // Багш өөрөө өөрийгөө бүртгэх, олгосон гэж тэмдэглэх гарц байх ёсгүй.
+    await refuses("багш өөрийгөө бүртгэх", () => enrollTeacher(asTeacher, teacher.id));
+    await refuses("багш олгосон гэж тэмдэглэх", () => markPaid(asTeacher, row.id));
+    await refuses("багш жагсаалт харах", () => schoolIncentives(asTeacher));
+    await refuses("эцэг эх жагсаалт харах", () => schoolIncentives(parent));
+    await refuses("сурагч жагсаалт харах", () => schoolIncentives(s0));
+
+    // Хүүхэд, эцэг эх мөнгөний тухай юу ч харахгүй.
+    check("сурагчид хөлс харагдахгүй", (await myIncentive(s0)) === null);
+    check("эцэг эхэд хөлс харагдахгүй", (await myIncentive(parent)) === null);
+
+    // Цуцалсан мөр багшийн картаас алга болно.
+    await cancelIncentive(asManager, row.id);
+    check("цуцлахад карт алга болов", (await myIncentive(asTeacher)) === null);
+
+    // Дахин бүртгэвэл сэргэнэ, давхар мөр үүсэхгүй.
+    await enrollTeacher(asManager, teacher.id, 70000);
+    const again = await schoolIncentives(asManager);
+    check(
+      "давхар мөр үүсээгүй",
+      again.filter((i) => i.teacherUserId === teacher.id).length === 1,
+    );
+    check("дүн шинэчлэгдэв", (await myIncentive(asTeacher))?.amountMnt === 70000);
+
+    await db.delete(teacherIncentives).where(eq(teacherIncentives.teacherUserId, teacher.id));
   }
 
   console.log();
