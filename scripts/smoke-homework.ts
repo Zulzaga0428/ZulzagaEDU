@@ -78,6 +78,7 @@ import { schoolSubjects } from "../src/server/homework/service";
 import { hashPin, verifyPin, isWeakPin, generateLoginCode, latinPrefix } from "../src/server/auth/pin";
 import type { StudentHomeworkRow } from "../src/server/homework/service";
 import { myProfile, changeOwnPin } from "../src/server/profile/service";
+import { attachToHomework, homeworkFiles } from "../src/server/files/storage";
 
 let passed = 0;
 let failed = 0;
@@ -253,6 +254,7 @@ async function main() {
     status,
     teacherNote: note,
     checkedAt,
+    boardPhotos: [],
   });
 
   const t = todayUb();
@@ -889,6 +891,57 @@ async function main() {
   await deleteFile(shotX.id);
   await deleteHomework(asTeacher, hwX);
   await db.delete(schools).where(eq(schools.id, schoolB.id));
+
+  console.log();
+  console.log("38. Багшийн самбарын зураг");
+  {
+    const hwB = await createHomework(asTeacher, {
+      classId: klass.id,
+      subjectId: null,
+      title: "Самбар шалгах",
+      description: null,
+      dueAt: endOfDayUb(addDaysUb(todayUb(), 1)),
+    });
+
+    const board = await saveImage(asTeacher, new Uint8Array(png), "image/png");
+    await attachToHomework(asTeacher, hwB, board.id);
+    check("зураг хавсрав", (await homeworkFiles(hwB)).includes(board.id));
+
+    // Ангийн БҮХ хүн харна — энэ нь хүүхдийн дэвтрийн зурагтай ЭСРЭГ дүрэм.
+    check("багш өөрөө харав", (await readFileFor(asTeacher, board.id)).bytes.length > 0);
+    check("ангийн сурагч харав", (await readFileFor(s0, board.id)).bytes.length > 0);
+    check("өөр сурагч ч харав", (await readFileFor(s1, board.id)).bytes.length > 0);
+    check("эцэг эх харав", (await readFileFor(parent, board.id)).bytes.length > 0);
+
+    // Харин эрхлэгч ангийн агуулга харахгүй — PERMISSIONS-ийн шугам хэвээр.
+    await refuses("эрхлэгч самбарын зураг харах", () => readFileFor(asManager, board.id));
+    await refuses("өөр ангийн багш самбарын зураг харах", () =>
+      readFileFor(asTeacher2, board.id),
+    );
+
+    // Сурагч, эцэг эх зураг хавсаргах гарц байх ёсгүй.
+    await refuses("сурагч самбарын зураг хавсаргах", () =>
+      attachToHomework(s0, hwB, board.id),
+    );
+    await refuses("эцэг эх самбарын зураг хавсаргах", () =>
+      attachToHomework(parent, hwB, board.id),
+    );
+    await refuses("ангийн бус багш зураг хавсаргах", () =>
+      attachToHomework(asTeacher2, hwB, board.id),
+    );
+
+    // Сурагчийн жагсаалтад зураг хүрч байгаа эсэх — гол үнэ цэн тэнд.
+    const mine = (await myHomework(s0)).find((h) => h.id === hwB);
+    check("сурагчийн жагсаалтад зураг ирэв", mine?.boardPhotos.includes(board.id) === true);
+    const forParent = (await childHomework(parent, link.childId)).find((h) => h.id === hwB);
+    check("эцэг эхийн жагсаалтад зураг ирэв", forParent?.boardPhotos.includes(board.id) === true);
+
+    const noPhoto = (await myHomework(s0)).find((h) => h.id !== hwB);
+    check("зураггүй даалгаварт хоосон массив", Array.isArray(noPhoto?.boardPhotos));
+
+    await deleteHomework(asTeacher, hwB);
+    await deleteFile(board.id);
+  }
 
   console.log();
   console.log("37. Профайл ба PIN солих");

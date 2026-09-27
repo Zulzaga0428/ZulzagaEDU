@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getViewer } from "@/server/auth/access";
 import { AppShell } from "@/components/app-shell";
 import { homeworkRoster } from "@/server/homework/service";
+import { homeworkFiles } from "@/server/files/storage";
 import { formatDueUb } from "@/server/homework/time";
 import { checkAllDoneAction, checkSubmissionAction, deleteHomeworkAction } from "../../actions";
 
@@ -25,6 +26,7 @@ export default async function HomeworkRosterPage({ params }: PageProps<"/bagsh/d
 
   const { id } = await params;
   const { title, dueAt, rows } = await homeworkRoster(viewer, id);
+  const board = await homeworkFiles(id);
 
   const pending = rows.filter((r) => r.status === "ASSIGNED");
   const toCheck = rows.filter((r) => r.status === "DONE");
@@ -40,6 +42,18 @@ export default async function HomeworkRosterPage({ params }: PageProps<"/bagsh/d
       <Link href="/bagsh" className="text-sm font-bold text-brand hover:underline">
         ← Буцах
       </Link>
+
+      {/* Багш өөрөө юу илгээснээ хараад батлах боломжтой байх ёстой. */}
+      {board.map((fid) => (
+        <a key={fid} href={`/api/file/${fid}`} target="_blank" rel="noreferrer" className="block">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={`/api/file/${fid}`}
+            alt="Самбарын зураг"
+            className="w-full rounded-2xl border border-line object-contain"
+          />
+        </a>
+      ))}
 
       <p className="rounded-3xl bg-surface-soft px-5 py-4 text-center">
         <span className="text-3xl font-extrabold text-brand">

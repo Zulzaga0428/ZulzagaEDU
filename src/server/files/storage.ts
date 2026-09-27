@@ -8,10 +8,17 @@ import {
   classMembers,
   files,
   homework,
+  homeworkAttachments,
   homeworkSubmissions,
   submissionAttachments,
 } from "@/server/db/schema";
-import { AccessError, childrenOf, teachesClass, type Viewer } from "@/server/auth/access";
+import {
+  AccessError,
+  childrenOf,
+  guardianSeesClass,
+  teachesClass,
+  type Viewer,
+} from "@/server/auth/access";
 
 /**
  * Файлын хадгалалт — Railway-гийн байнгын диск дээр.
@@ -84,6 +91,37 @@ export async function saveImage(
  * ⛔ Эрхлэгч ХАРАХГҮЙ. Түүнд тоо л харагдана, даалгаврын агуулга биш
  * (`docs/PERMISSIONS.md`) — зураг бол агуулгын хамгийн шууд хэлбэр.
  */
+/** Энэ файл багшийн самбарын зураг бол аль ангийнх вэ. Биш бол `null`. */
+async function boardPhotoClass(fileId: string): Promise<string | null> {
+  const [row] = await db
+    .select({ classId: homework.classId })
+    .from(homeworkAttachments)
+    .innerJoin(homework, eq(homework.id, homeworkAttachments.homeworkId))
+    .where(eq(homeworkAttachments.fileId, fileId))
+    .limit(1);
+  return row?.classId ?? null;
+}
+
+/**
+ * Ангийн нийтийн агуулгыг хэн харах вэ.
+ *
+ * ⚠️ Эрхлэгч ЭНД ОРОХГҮЙ. `docs/PERMISSIONS.md` — эрхлэгч тоо хардаг,
+ * ангийн агуулга хардаггүй. Самбарын зураг нь хүүхдийн зураг биш ч гэсэн
+ * энэ шугамыг зөөлрүүлэх шалтгаан болохгүй.
+ */
+async function seesClassContent(viewer: Viewer, classId: string): Promise<boolean> {
+  if (viewer.role === "TEACHER") {
+    return teachesClass(viewer.userId, classId, viewer.schoolId);
+  }
+  if (viewer.role === "STUDENT") {
+    return studentInClass(viewer.userId, classId);
+  }
+  if (viewer.role === "PARENT") {
+    return guardianSeesClass(viewer.userId, classId, viewer.schoolId);
+  }
+  return false;
+}
+
 async function canRead(viewer: Viewer, fileId: string): Promise<boolean> {
   const [row] = await db
     .select({
@@ -107,6 +145,15 @@ async function canRead(viewer: Viewer, fileId: string): Promise<boolean> {
 
   // Байршуулсан хүн өөрөө үргэлж харна.
   if (row.uploaderId === viewer.userId) return true;
+
+  /*
+    Багшийн самбарын зураг — ангийн БҮХ хүнд зориулагдсан. Сурагчийн
+    дэвтрийн зурагтай эсрэг чиглэлтэй: тэр нь нэг хүүхдийнх тул хувийн,
+    энэ нь бүх ангийнх тул нээлттэй. Хоёуланг нь нэг дүрмээр шалгаж
+    болохгүй.
+  */
+  const boardClassId = await boardPhotoClass(fileId);
+  if (boardClassId) return seesClassContent(viewer, boardClassId);
 
   // Даалгаварт хавсрагдаагүй файлыг зөвхөн эзэн нь харна.
   if (!row.studentUserId || !row.classId) return false;
@@ -183,6 +230,52 @@ export async function attachToSubmission(
 }
 
 /** Тухайн илгээлтэд хавсаргасан зургууд. */
+/**
+ * Багш самбарынхаа зургийг даалгавартаа хавсаргана.
+ *
+ * Энэ бол аппын гол зорилго: багш самбар дээр аль хэдийн бичсэн, түүнийг
+ * дахин бичих ёсгүй. Хүүхэд хуулахгүй, эцэг эх жинхэнэ самбарыг хардаг.
+ */
+export async function attachToHomework(
+  viewer: Viewer,
+  homeworkId: string,
+  fileId: string,
+): Promise<void> {
+  if (viewer.role !== "TEACHER") throw new AccessError("ЭРХГҮЙ");
+
+  const [hw] = await db
+    .select({ classId: homework.classId })
+    .from(homework)
+    .where(and(eq(homework.id, homeworkId), eq(homework.schoolId, viewer.schoolId)))
+    .limit(1);
+  if (!hw) throw new AccessError("ЭРХГҮЙ");
+
+  if (!(await teachesClass(viewer.userId, hw.classId, viewer.schoolId))) {
+    throw new AccessError("ЭРХГҮЙ");
+  }
+
+  // Өөр сургуулийн файлыг хавсаргах гарцыг хаана.
+  const [file] = await db
+    .select({ schoolId: files.schoolId, uploaderId: files.uploaderId })
+    .from(files)
+    .where(eq(files.id, fileId))
+    .limit(1);
+  if (!file || file.schoolId !== viewer.schoolId || file.uploaderId !== viewer.userId) {
+    throw new AccessError("ЭРХГҮЙ");
+  }
+
+  await db.insert(homeworkAttachments).values({ homeworkId, fileId }).onConflictDoNothing();
+}
+
+/** Даалгаварт хавсрагсан самбарын зургууд. */
+export async function homeworkFiles(homeworkId: string): Promise<string[]> {
+  const rows = await db
+    .select({ fileId: homeworkAttachments.fileId })
+    .from(homeworkAttachments)
+    .where(eq(homeworkAttachments.homeworkId, homeworkId));
+  return rows.map((r) => r.fileId);
+}
+
 export async function submissionFiles(submissionId: string): Promise<string[]> {
   const rows = await db
     .select({ fileId: submissionAttachments.fileId })

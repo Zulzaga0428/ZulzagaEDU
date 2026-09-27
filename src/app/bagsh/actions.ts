@@ -9,7 +9,9 @@ import {
   createHomework,
   deleteHomework,
   myClasses,
+  schoolSubjects,
 } from "@/server/homework/service";
+import { attachToHomework } from "@/server/files/storage";
 import { endOfDayUb } from "@/server/homework/time";
 import { notifyChecked, notifyNewHomework } from "@/server/notify/push";
 
@@ -18,22 +20,44 @@ export async function createHomeworkAction(formData: FormData): Promise<void> {
 
   const classId = formData.get("classId");
   const subjectId = formData.get("subjectId");
-  const title = formData.get("title");
+  const rawTitle = formData.get("title");
   const description = formData.get("description");
   const dueDate = formData.get("dueDate");
+  const boardFileId = formData.get("boardFileId");
 
-  if (typeof classId !== "string" || typeof title !== "string" || typeof dueDate !== "string") {
+  if (typeof classId !== "string" || typeof rawTitle !== "string" || typeof dueDate !== "string") {
     throw new Error("Дутуу утга.");
+  }
+
+  const subject = typeof subjectId === "string" && subjectId !== "" ? subjectId : null;
+  const board = typeof boardFileId === "string" && boardFileId !== "" ? boardFileId : null;
+
+  /*
+    Самбараа зурагдсан багшаас гарчиг нэхэхгүй. Зураг өөрөө даалгавар —
+    дахин бичүүлэх нь яг тэр давхар ажил (`docs/DECISIONS.md` §16). Гарчиг
+    хоосон бол хичээлийнхээ нэрээр нэрлэнэ.
+  */
+  let title = rawTitle.trim();
+  if (title.length === 0) {
+    if (!board) throw new Error("Гарчиг эсвэл самбарын зураг хэрэгтэй.");
+    const name = subject
+      ? (await schoolSubjects(viewer)).find((s) => s.id === subject)?.name
+      : null;
+    title = name ?? "Гэрийн даалгавар";
   }
 
   // Эрхийг service давхарга өөрөө шалгана — энд зөвхөн хэлбэрийг шалгав.
   const homeworkId = await createHomework(viewer, {
     classId,
-    subjectId: typeof subjectId === "string" && subjectId !== "" ? subjectId : null,
+    subjectId: subject,
     title,
     description: typeof description === "string" ? description : null,
     dueAt: endOfDayUb(dueDate),
   });
+
+  if (board) {
+    await attachToHomework(viewer, homeworkId, board);
+  }
 
   // Мэдэгдэл бүтэхгүй байж болно (зөвшөөрөл өгөөгүй, iPhone дээр дэлгэцэнд
   // нэмээгүй). Даалгавар аль хэдийн үүссэн тул үүнээс болж уначихгүй.

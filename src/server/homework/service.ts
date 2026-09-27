@@ -6,6 +6,7 @@ import {
   classMembers,
   classes,
   homework,
+  homeworkAttachments,
   homeworkSubmissions,
   subjects,
   submissionAttachments,
@@ -224,6 +225,8 @@ export type StudentHomeworkRow = {
   status: "ASSIGNED" | "DONE" | "CHECKED";
   teacherNote: string | null;
   checkedAt: Date | null;
+  /** Багшийн самбарын зургууд. Хүүхэд хуулах шаардлагагүй болгодог гол зүйл. */
+  boardPhotos: string[];
 };
 
 async function homeworkForStudent(studentUserId: string, schoolId: string) {
@@ -237,6 +240,12 @@ async function homeworkForStudent(studentUserId: string, schoolId: string) {
       status: homeworkSubmissions.status,
       teacherNote: homeworkSubmissions.teacherNote,
       checkedAt: homeworkSubmissions.checkedAt,
+      // Мөр бүрд тусад нь асуулга явуулахгүй — 20 даалгавар = 20 хандалт болно.
+      boardPhotos: sql<string[]>`coalesce((
+        select json_agg(ha.file_id)
+        from ${homeworkAttachments} ha
+        where ha.homework_id = ${homework.id}
+      ), '[]'::json)`,
     })
     .from(homeworkSubmissions)
     .innerJoin(homework, eq(homework.id, homeworkSubmissions.homeworkId))

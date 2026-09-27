@@ -44,13 +44,34 @@ function Group({
       </SectionLabel>
       <div className="space-y-2">
         {items.map((h) => (
-          <Row
-            key={h.id}
-            icon={icon}
-            tint={tint}
-            title={h.title}
-            subtitle={`${h.subject ?? "Хичээл"} · ${formatDueUb(h.dueAt)} хүртэл`}
-          />
+          <div key={h.id}>
+            <Row
+              icon={icon}
+              tint={tint}
+              title={h.title}
+              subtitle={`${h.subject ?? "Хичээл"} · ${formatDueUb(h.dueAt)} хүртэл`}
+            />
+            {/*
+              Эцэг эхийн гол асуулт: «өнөөдөр яг юу өгсөн бэ». Самбарын зураг
+              байвал хүүхдийн хуулбарыг тайлах шаардлагагүй.
+            */}
+            {h.boardPhotos.map((id) => (
+              <a
+                key={id}
+                href={`/api/file/${id}`}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-1.5 block"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={`/api/file/${id}`}
+                  alt="Багшийн самбар"
+                  className="w-full rounded-2xl border border-line object-contain"
+                />
+              </a>
+            ))}
+          </div>
         ))}
       </div>
     </section>

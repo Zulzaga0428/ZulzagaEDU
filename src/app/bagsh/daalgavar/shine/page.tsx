@@ -6,6 +6,7 @@ import { Empty } from "@/components/ui";
 import { Users } from "lucide-react";
 import { myClasses, schoolSubjects } from "@/server/homework/service";
 import { addDaysUb, todayUb } from "@/server/homework/time";
+import { BoardPhoto } from "@/components/board-photo";
 import { createHomeworkAction } from "../../actions";
 
 export const dynamic = "force-dynamic";
@@ -95,13 +96,26 @@ export default async function NewHomeworkPage() {
           </select>
         </label>
 
+        {/*
+          Самбар нь эхний сонголт — бичихээс хурдан. Багш аль хэдийн
+          самбар дээр бичсэн байдаг (`docs/DECISIONS.md` §16).
+        */}
+        <BoardPhoto />
+
+        <div className="flex items-center gap-3">
+          <span className="h-px flex-1 bg-line" />
+          <span className="text-xs font-bold text-ink-faint">эсвэл бичих</span>
+          <span className="h-px flex-1 bg-line" />
+        </div>
+
         <label className="block">
-          <span className="text-sm font-bold text-ink">Юу хийх вэ</span>
+          <span className="text-sm font-bold text-ink">
+            Юу хийх вэ{" "}
+            <span className="font-normal text-ink-faint">— зурагтай бол заавал биш</span>
+          </span>
           <input
             name="title"
-            required
             maxLength={200}
-            autoFocus
             placeholder="Жишээ: 42–48-р дасгал"
             className="mt-1.5 w-full rounded-xl border border-line bg-surface px-4 py-3 text-ink placeholder:text-ink-faint"
           />

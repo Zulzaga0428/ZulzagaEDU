@@ -64,6 +64,25 @@ function Task({
         </div>
       </div>
 
+      {/*
+        Самбарын зураг — ЭНЭ Л даалгавар. Дүрсийг жижигрүүлж таслахгүй:
+        уншиж чадахгүй бол утга алга. Дарвал бүтэн хэмжээгээр нээнэ.
+      */}
+      {h.boardPhotos.length > 0 && (
+        <div className="mt-3 space-y-2">
+          {h.boardPhotos.map((id) => (
+            <a key={id} href={`/api/file/${id}`} target="_blank" rel="noreferrer" className="block">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={`/api/file/${id}`}
+                alt="Багшийн самбар"
+                className="w-full rounded-2xl border border-line object-contain"
+              />
+            </a>
+          ))}
+        </div>
+      )}
+
       {h.description && (
         <p className="mt-3 whitespace-pre-line rounded-2xl bg-surface-soft px-4 py-3 text-sm text-ink-soft">
           {h.description}
