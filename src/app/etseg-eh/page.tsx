@@ -1,13 +1,7 @@
 import { redirect } from "next/navigation";
-import {
-  CalendarClock,
-  CircleCheck,
-  Megaphone,
-  MessageSquareText,
-  TriangleAlert,
-  Users,
-} from "lucide-react";
+import { CalendarClock, CircleCheck, Megaphone, MessageSquare, MessageSquareText, TriangleAlert, Users } from "lucide-react";
 import { getViewer } from "@/server/auth/access";
+import { startThreadAction } from "@/app/yaria/actions";
 import { AppShell } from "@/components/app-shell";
 import { Card, Empty, FeatureCard, IconBox, Row, SectionLabel } from "@/components/ui";
 import { childHomework, myChildren } from "@/server/homework/service";
@@ -146,6 +140,27 @@ export default async function ParentHome() {
                   </span>
                 )}
               </FeatureCard>
+
+              {/*
+                Багштай холбогдох зам (`docs/DECISIONS.md` §17). Хүүхэд тус
+                бүрд тусдаа — «аль хүүхдийн тухай яриад байна» гэж асуухгүй.
+              */}
+              <form action={startThreadAction}>
+                <input type="hidden" name="studentUserId" value={child.id} />
+                <button
+                  type="submit"
+                  className="flex w-full items-center gap-3 rounded-2xl border border-line bg-surface px-4 py-3 text-left transition-colors hover:border-brand"
+                >
+                  <IconBox icon={MessageSquare} tint="цэнхэр" />
+                  <span className="min-w-0 flex-1">
+                    <span className="block font-bold text-ink">Багштай ярих</span>
+                    <span className="block text-xs text-ink-faint">
+                      {child.name}-ийн тухай
+                    </span>
+                  </span>
+                  <span className="shrink-0 text-ink-faint">›</span>
+                </button>
+              </form>
 
               <Group label="Хугацаа өнгөрсөн" items={groups.overdue} icon={TriangleAlert} tint="шар" />
               <Group label="Өнөөдөр" items={groups.today} icon={CalendarClock} tint="цэнхэр" />

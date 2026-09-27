@@ -13,6 +13,7 @@ import {
   classes,
   credentials as credentialsTable,
   teacherIncentives,
+  threads,
   guardians,
   memberships,
   schools,
@@ -80,6 +81,14 @@ import { hashPin, verifyPin, isWeakPin, generateLoginCode, latinPrefix } from ".
 import type { StudentHomeworkRow } from "../src/server/homework/service";
 import { myProfile, changeOwnPin } from "../src/server/profile/service";
 import { attachToHomework, homeworkFiles } from "../src/server/files/storage";
+import {
+  openThread,
+  parentThreads,
+  sendMessage,
+  startThreadForChild,
+  teacherThreads,
+  unreadCount,
+} from "../src/server/thread/service";
 import {
   cancelIncentive,
   enrollTeacher,
@@ -999,6 +1008,65 @@ async function main() {
     check("дүн шинэчлэгдэв", (await myIncentive(asTeacher))?.amountMnt === 70000);
 
     await db.delete(teacherIncentives).where(eq(teacherIncentives.teacherUserId, teacher.id));
+  }
+
+  console.log();
+  console.log("40. Багш ↔ эцэг эхийн яриа");
+  {
+    const tid = await startThreadForChild(asTeacher, link.childId);
+    check("багш яриа эхлүүлэв", typeof tid === "string" && tid.length > 0);
+
+    // Хоёр дахь удаа дуудахад ШИНЭ яриа үүсэхгүй — нэг хүүхэдэд нэг яриа.
+    const again = await startThreadForChild(parent, link.childId);
+    check("давхар яриа үүсэхгүй", again === tid);
+
+    await sendMessage(asTeacher, tid, "Сайн байна уу. Болд өнөөдөр сайн ажиллалаа.");
+    await sendMessage(parent, tid, "Баярлалаа багш аа.");
+
+    const view = await openThread(parent, tid);
+    check("хоёр мессеж харагдав", view.messages.length === 2, view.messages.length + " мессеж");
+    check("хүүхдийн нэр гарав", view.studentName.length > 0, view.studentName);
+    check("өөрийн мессежийг таньж байна", view.messages[1].mine === true);
+    check("багшийн мессеж өөрийнх биш", view.messages[0].mine === false);
+
+    // ⚠️ Хамгийн чухал шалгалт: ХҮҮХЭД оролцохгүй.
+    await refuses("сурагч яриа нээх", () => openThread(s0, tid));
+    await refuses("сурагч мессеж бичих", () => sendMessage(s0, tid, "Сайн уу"));
+    await refuses("сурагч яриа эхлүүлэх", () => startThreadForChild(s0, link.childId));
+
+    // Эрхлэгч ч орохгүй — ангийн агуулга хардаггүй.
+    await refuses("эрхлэгч яриа нээх", () => openThread(asManager, tid));
+
+    // Өөр ангийн багш, өөр хүүхдийн эцэг эх орохгүй.
+    await refuses("ангийн бус багш яриа нээх", () => openThread(asTeacher2, tid));
+    const notMyChild = students.find((st) => st.id !== link.childId)!;
+    await refuses("эцэг эх өөр хүүхдийн яриа эхлүүлэх", () =>
+      startThreadForChild(parent, notMyChild.id),
+    );
+
+    // Хоосон, хэт урт мессеж.
+    await refuses("хоосон мессеж", () => sendMessage(parent, tid, "   "));
+    await refuses("хэт урт мессеж", () => sendMessage(parent, tid, "a".repeat(2001)));
+
+    // Уншаагүйн тоо: өөрийн бичсэн нь ОРОХГҮЙ.
+    await sendMessage(asTeacher, tid, "Маргааш дэвтрээ авчраарай.");
+    const forParent = (await parentThreads(parent)).find((t) => t.id === tid);
+    check("эцэг эхэд 1 уншаагүй", forParent?.unread === 1, forParent?.unread + " уншаагүй");
+    const forTeacher = (await teacherThreads(asTeacher)).find((t) => t.id === tid);
+    check("багшид өөрийн мессеж уншаагүй болоогүй", forTeacher?.unread === 0);
+
+    await openThread(parent, tid);
+    const after = (await parentThreads(parent)).find((t) => t.id === tid);
+    check("нээсний дараа 0 болов", after?.unread === 0);
+    check("сүүлийн мессеж харагдав", after?.preview?.includes("дэвтрээ") === true);
+
+    check("багшийн жагсаалтад орлоо", (await teacherThreads(asTeacher)).some((t) => t.id === tid));
+    check("ангийн бус багшид харагдахгүй", !(await teacherThreads(asTeacher2)).some((t) => t.id === tid));
+    await refuses("сурагч жагсаалт харах", () => teacherThreads(s0));
+    await refuses("сурагч эцэг эхийн жагсаалт харах", () => parentThreads(s0));
+    check("сурагчид уншаагүй тоо 0", (await unreadCount(s0)) === 0);
+
+    await db.delete(threads).where(eq(threads.id, tid));
   }
 
   console.log();

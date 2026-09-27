@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { KeyRound, UserCheck, UserPlus, Users } from "lucide-react";
+import { KeyRound, MessageSquare, UserCheck, UserPlus, Users } from "lucide-react";
 import { getViewer } from "@/server/auth/access";
 import { AppShell } from "@/components/app-shell";
 import { Card, Empty, IconBox, SectionLabel } from "@/components/ui";
@@ -8,6 +8,7 @@ import { InviteButton } from "@/components/invite-button";
 import { AddStudent, ResetPin } from "@/components/student-credentials";
 import { myClasses } from "@/server/homework/service";
 import { classStudents, pendingGuardians } from "@/server/invite/service";
+import { startThreadAction } from "@/app/yaria/actions";
 import { approveGuardianAction } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -126,6 +127,23 @@ export default async function InvitePage() {
                   </div>
                   <InviteButton classId={klass.id} studentId={s.id} studentName={s.name} />
                 </div>
+
+                {/*
+                  Эцэг эх холбогдсон байж л яриа утгатай. Холбогдоогүй бол
+                  хэнд ч очихгүй тул товч гаргахгүй (`DECISIONS.md` §17).
+                */}
+                {s.guardianCount > 0 && (
+                  <form action={startThreadAction} className="mt-2">
+                    <input type="hidden" name="studentUserId" value={s.id} />
+                    <button
+                      type="submit"
+                      className="flex w-full items-center justify-center gap-2 rounded-xl border border-line px-3 py-2 text-xs font-bold text-brand hover:border-brand"
+                    >
+                      <MessageSquare className="h-3.5 w-3.5" strokeWidth={2.5} />
+                      Эцэг эхтэй нь ярих
+                    </button>
+                  </form>
+                )}
 
                 <div className="mt-2 flex items-center gap-2">
                   <p className="flex min-w-0 flex-1 items-center gap-2 rounded-xl bg-surface-soft px-3 py-2 text-xs text-ink-soft">

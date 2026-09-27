@@ -7,5 +7,6 @@ export * from "./files";
 export * from "./homework";
 export * from "./invitations";
 export * from "./comms";
+export * from "./threads";
 export * from "./incentives";
 export * from "./audit";

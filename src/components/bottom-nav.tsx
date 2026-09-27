@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CalendarDays, Home, Megaphone, Plus, Users } from "lucide-react";
+import { Home, Megaphone, MessageSquare, Plus, Users } from "lucide-react";
 
 /**
  * Натив апп шиг доод nav — **зөвхөн багшид**.
@@ -20,8 +20,13 @@ const LEFT = [
   { href: "/bagsh/urilga", label: "Сурагч", icon: Users },
 ];
 
+/*
+  Доод nav бол ӨДӨР ТУТМЫН зүйлсийнх. Хичээлийн хуваарь улиралд нэг удаа
+  бөглөгддөг тул эндээс гарч, нүүрэн дээрээ мөр болж үлдсэн. Оронд нь яриа —
+  багш өдөр бүр хардаг зүйл.
+*/
 const RIGHT = [
-  { href: "/bagsh/hovaari", label: "Хуваарь", icon: CalendarDays },
+  { href: "/yaria", label: "Яриа", icon: MessageSquare },
   { href: "/bagsh/zarlal", label: "Зарлал", icon: Megaphone },
 ];
 
