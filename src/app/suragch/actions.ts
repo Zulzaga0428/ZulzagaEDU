@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireViewer } from "@/server/auth/access";
 import { markDone, undoDone } from "@/server/homework/service";
+import { awardForHomework } from "@/server/points/service";
 
 export async function markDoneAction(formData: FormData): Promise<void> {
   const viewer = await requireViewer();
@@ -10,6 +11,12 @@ export async function markDoneAction(formData: FormData): Promise<void> {
   if (typeof homeworkId !== "string") throw new Error("Дутуу утга.");
 
   await markDone(viewer, homeworkId);
+
+  /*
+    Оноо ШУУД — 7 настай хүүхдэд маргааш ирэх шагнал утгагүй. Багшийн
+    оролцоо энд байхгүй (`docs/DECISIONS.md` §18).
+  */
+  await awardForHomework(viewer, homeworkId, "HOMEWORK_DONE");
   revalidatePath("/suragch");
 }
 

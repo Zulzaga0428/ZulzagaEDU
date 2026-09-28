@@ -65,7 +65,8 @@ export default async function TeacherHome() {
           <div className="grid grid-cols-3 gap-2.5">
             <StatTile value={classList.reduce((n, c) => n + c.students, 0)} label="Сурагч" />
             <StatTile value={all.length} label="Даалгавар" />
-            <StatTile value={waiting} label="Шалгах" tone="онцлох" />
+            {/* «Шалгах» гэвэл хийх ёстой ажил мэт. Энэ бол зүгээр нэг тоо. */}
+            <StatTile value={waiting} label="Илгээсэн" tone="онцлох" />
           </div>
         </>
       )}
@@ -214,19 +215,26 @@ export default async function TeacherHome() {
 
       {all.length > 0 && (
         <section>
-          <SectionLabel>Өнөөдрийн ажил</SectionLabel>
+          <SectionLabel>Ангийн байдал</SectionLabel>
           {/*
-            Товш болохгүй мөр байв — багш дарж үзээд юу ч болохгүй. Шалгах юм
-            байвал хамгийн ойрын даалгавар руу аваачна, байхгүй бол товшихгүй.
+            ⚠️ Өнгө аясыг болгоомжтой сонгов. Өмнө нь «Даалгавар шалгах —
+            91 сурагчийн ажил ХҮЛЭЭГДЭЖ БАЙНА» гэж бичигдсэн байсан нь багшид
+            биелүүлээгүй ҮҮРЭГ мэт харагдаж байв.
+
+            Гэтэл багш дэвтрийг нь ангидаа аль хэдийн хардаг. Аппаар дахин
+            шалгах нь нэг ажлыг хоёр удаа хийлгэнэ — Zulzaga 2026-09-28-нд
+            үүнийг зөв зааж өгсөн. Шалгах нь СОНГОЛТ: багш хүсвэл тэмдэглэл
+            бичнэ, хүсэхгүй бол огт хэрэггүй. Жагсаалт нь үлдэнэ, дарамт нь
+            алга болно.
           */}
           <Row
             icon={ClipboardCheck}
             tint="цэнхэр"
-            title="Даалгавар шалгах"
+            title="Сурагчдын илгээсэн ажил"
             subtitle={
               waiting > 0
-                ? `${waiting} сурагчийн ажил хүлээгдэж байна`
-                : "Хүлээгдэж байгаа зүйл алга"
+                ? `${waiting} хүүхэд хийснээ тэмдэглэсэн — хүсвэл хараарай`
+                : "Шинэ зүйл алга"
             }
             href={nextToCheck ? `/bagsh/daalgavar/${nextToCheck.id}` : undefined}
             trailing={

@@ -50,6 +50,13 @@
       "when": 1790575856990,
       "tag": "0006_teacher_notifications",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1790609760252,
+      "tag": "0007_points_ledger",
+      "breakpoints": true
     }
   ]
 }

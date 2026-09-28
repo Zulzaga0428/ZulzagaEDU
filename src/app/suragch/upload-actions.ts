@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireViewer } from "@/server/auth/access";
 import { attachToSubmission, saveImage } from "@/server/files/storage";
+import { awardForHomework } from "@/server/points/service";
 
 /**
  * Дэвтрийн зураг илгээх.
@@ -26,6 +27,13 @@ export async function uploadNotebookPhoto(formData: FormData): Promise<void> {
   const bytes = new Uint8Array(await photo.arrayBuffer());
   const { id } = await saveImage(viewer, bytes, photo.type);
   await attachToSubmission(viewer, homeworkId, id);
+
+  /*
+    Зураг илгээх нь «хийсэн» гэж тэмдэглэдэг тул хоёр оноо хоёулаа очно.
+    Хоёулаа ХҮҮХДИЙН үйлдэл — багшийн оролцоо энд ч байхгүй (§18).
+  */
+  await awardForHomework(viewer, homeworkId, "HOMEWORK_DONE");
+  await awardForHomework(viewer, homeworkId, "PHOTO");
 
   revalidatePath("/suragch");
 }

@@ -8,5 +8,6 @@ export * from "./homework";
 export * from "./invitations";
 export * from "./comms";
 export * from "./threads";
+export * from "./points";
 export * from "./incentives";
 export * from "./audit";

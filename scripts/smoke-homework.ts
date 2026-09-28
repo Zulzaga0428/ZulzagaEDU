@@ -14,6 +14,7 @@ import {
   credentials as credentialsTable,
   homework as homeworkTable,
   notifications,
+  pointsLedger,
   teacherIncentives,
   threads,
   guardians,
@@ -90,6 +91,12 @@ import {
 } from "../src/server/schedule/service";
 import { schoolSubjects } from "../src/server/homework/service";
 import { hashPin, verifyPin, isWeakPin, generateLoginCode, latinPrefix } from "../src/server/auth/pin";
+import {
+  awardForHomework,
+  childPoints,
+  myHistory,
+  myPoints,
+} from "../src/server/points/service";
 import type { StudentHomeworkRow } from "../src/server/homework/service";
 import { myProfile, changeOwnPin } from "../src/server/profile/service";
 import { attachToHomework, homeworkFiles } from "../src/server/files/storage";
@@ -1366,6 +1373,72 @@ async function main() {
     await db.delete(credentialsTable).where(eq(credentialsTable.userId, acc2.userId));
     await db.delete(notifications).where(eq(notifications.userId, acc2.userId));
     await db.delete(users).where(eq(users.id, acc2.userId));
+  }
+
+  console.log();
+  console.log("46. Урамшууллын оноо");
+  {
+    process.env.POINTS_ENABLED = "1";
+    await db.delete(pointsLedger).where(eq(pointsLedger.userId, students[0].id));
+
+    const hwP1 = await createHomework(asTeacher, {
+      classId: klass.id, subjectId: null, title: "Оноо 1",
+      description: null, dueAt: endOfDayUb(addDaysUb(todayUb(), 1)),
+    });
+
+    check("эхлэхэд 0 оноо", (await myPoints(s0)) === 0);
+    await markDone(s0, hwP1);
+    await awardForHomework(s0, hwP1, "HOMEWORK_DONE");
+    check("хийхэд оноо нэмэгдэв", (await myPoints(s0)) === 10, (await myPoints(s0)) + " оноо");
+
+    // Давхар олгохгүй — «буцаах → дахин хийх» гэж тармуулах гарц хаалттай.
+    await awardForHomework(s0, hwP1, "HOMEWORK_DONE");
+    check("давхар оноо өгөхгүй", (await myPoints(s0)) === 10);
+
+    // Зураг нь нэмэлт — гэхдээ ХҮҮХДИЙН үйлдэл.
+    await awardForHomework(s0, hwP1, "PHOTO");
+    check("зурагт нэмэлт оноо", (await myPoints(s0)) === 15);
+
+    // ⚠️ ХАМГИЙН ЧУХАЛ: багш шалгасан нь оноонд НӨЛӨӨЛӨХГҮЙ.
+    const rp = await homeworkRoster(asTeacher, hwP1);
+    const sid = rp.rows.find((r) => r.studentUserId === students[0].id)!.submissionId;
+    await checkSubmission(asTeacher, hwP1, sid, "Сайн байна.");
+    check("багш шалгахад оноо ӨӨРЧЛӨГДӨХГҮЙ", (await myPoints(s0)) === 15);
+
+    // Хугацаа хэтэрсэнд оноо байхгүй — хуучныг дарж тармуулахаас сэргийлнэ.
+    const hwOld = await createHomework(asTeacher, {
+      classId: klass.id, subjectId: null, title: "Хугацаа өнгөрсөн",
+      description: null, dueAt: endOfDayUb(addDaysUb(todayUb(), -3)),
+    });
+    await awardForHomework(s0, hwOld, "HOMEWORK_DONE");
+    check("хугацаа хэтэрсэнд оноо алга", (await myPoints(s0)) === 15);
+
+    // Багш, эцэг эх оноо цуглуулахгүй.
+    await awardForHomework(asTeacher, hwP1, "HOMEWORK_DONE");
+    check("багш оноо цуглуулахгүй", (await myPoints(asTeacher)) === 0);
+
+    // Эцэг эх өөрийн хүүхдийнхээ оноог харна, өөр хүүхдийнхийг ҮГҮЙ.
+    check("эцэг эх хүүхдийнхээ оноог харав", (await childPoints(parent, link.childId)) >= 0);
+    const notMine2 = students.find((x) => x.id !== link.childId)!;
+    await refuses("эцэг эх өөр хүүхдийн оноо харах", () => childPoints(parent, notMine2.id));
+    await refuses("багш childPoints дуудах", () => childPoints(asTeacher, link.childId));
+
+    const hist = await myHistory(s0);
+    check("түүх бичигдэв", hist.length === 2, hist.length + " мөр");
+
+    // ⚠️ Туг унтраахад оноо олгохоо болино.
+    process.env.POINTS_ENABLED = "0";
+    const hwP2 = await createHomework(asTeacher, {
+      classId: klass.id, subjectId: null, title: "Оноо 2",
+      description: null, dueAt: endOfDayUb(addDaysUb(todayUb(), 1)),
+    });
+    await awardForHomework(s0, hwP2, "HOMEWORK_DONE");
+    check("туг унтраалттай үед оноо өгөхгүй", (await myPoints(s0)) === 15);
+
+    await db.delete(pointsLedger).where(eq(pointsLedger.userId, students[0].id));
+    await deleteHomework(asTeacher, hwP2);
+    await deleteHomework(asTeacher, hwOld);
+    await deleteHomework(asTeacher, hwP1);
   }
 
   console.log();
