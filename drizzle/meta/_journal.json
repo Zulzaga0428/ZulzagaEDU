@@ -43,6 +43,13 @@
       "when": 1790528625683,
       "tag": "0005_threads",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1790575856990,
+      "tag": "0006_teacher_notifications",
+      "breakpoints": true
     }
   ]
 }

@@ -101,6 +101,7 @@ export type InviteView = {
   studentName: string;
   studentUserId: string;
   schoolId: string;
+  classId: string;
 };
 
 /** Урилгыг уншина. Хүчингүй бол null — шалтгааныг задлахгүй. */
@@ -109,6 +110,7 @@ export async function readInvite(token: string): Promise<InviteView | null> {
     .select({
       schoolId: invitations.schoolId,
       studentUserId: invitations.targetStudentId,
+      classId: invitations.classId,
       className: classes.name,
       expiresAt: invitations.expiresAt,
       revokedAt: invitations.revokedAt,
@@ -144,11 +146,21 @@ export async function readInvite(token: string): Promise<InviteView | null> {
     studentName: student.name,
     studentUserId: row.studentUserId,
     schoolId: row.schoolId,
+    classId: row.classId ?? "",
   };
 }
 
 export type AcceptResult =
-  | { ok: true; userId: string; schoolId: string }
+  | {
+      ok: true;
+      userId: string;
+      schoolId: string;
+      /* Багшид мэдэгдэхэд хэрэгтэй — тэр батлах хүртэл эцэг эх юу ч харахгүй. */
+      studentUserId: string;
+      studentName: string;
+      classId: string;
+      parentName: string;
+    }
   | { ok: false; reason: "ХҮЧИНГҮЙ" | "PIN_СУЛ" | "PIN_БУРУУ" | "АЛЬ_ХЭДИЙН" };
 
 /**
@@ -233,7 +245,15 @@ export async function acceptParentInvite(
     });
   });
 
-  return { ok: true, userId, schoolId: invite.schoolId };
+  return {
+    ok: true,
+    userId,
+    schoolId: invite.schoolId,
+    studentUserId: invite.studentUserId,
+    studentName: invite.studentName,
+    classId: invite.classId,
+    parentName: name,
+  };
 }
 
 export type PendingGuardian = {

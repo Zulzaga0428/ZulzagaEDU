@@ -12,6 +12,7 @@ import {
   classMembers,
   classes,
   credentials as credentialsTable,
+  notifications,
   teacherIncentives,
   threads,
   guardians,
@@ -34,7 +35,11 @@ import {
 import { endOfDayUb, todayUb, addDaysUb } from "../src/server/homework/time";
 import { groupByDue, parentHeadline, studentHeadline } from "../src/server/homework/grouping";
 import { schoolOverview } from "../src/server/school/overview";
-import { sendDueReminders } from "../src/server/notify/push";
+import {
+  notifyGuardianPending,
+  notifyThreadMessage,
+  sendDueReminders,
+} from "../src/server/notify/push";
 import {
   attachToSubmission,
   deleteFile,
@@ -1067,6 +1072,73 @@ async function main() {
     check("сурагчид уншаагүй тоо 0", (await unreadCount(s0)) === 0);
 
     await db.delete(threads).where(eq(threads.id, tid));
+  }
+
+  console.log();
+  console.log("41. Багш руу чиглэсэн мэдэгдэл");
+  {
+    // Багш өмнө нь ЯМАР Ч мэдэгдэл авдаггүй байсан — бүгд сурагч/эцэг эх рүү явдаг байв.
+    await db.delete(notifications).where(eq(notifications.userId, teacher.id));
+
+    const g = await notifyGuardianPending({
+      schoolId: school.id,
+      classId: klass.id,
+      studentName: "Шалгалтын Сурагч",
+      parentName: "Шалгалтын Эцэг",
+    });
+    check("нэгдэх хүсэлт багшид очив", g.recipients >= 1, g.recipients + " багш");
+
+    const rows = await db
+      .select({ kind: notifications.kind })
+      .from(notifications)
+      .where(and(eq(notifications.userId, teacher.id), eq(notifications.kind, "GUARDIAN_PENDING")));
+    check("мөр бичигдэв", rows.length === 1);
+
+    // Ярианы мэдэгдэл — бичсэн хүн өөрөө авахгүй.
+    const tid2 = await startThreadForChild(asTeacher, link.childId);
+    const sent = await sendMessage(parent, tid2, "Болд өнөөдөр ирэхгүй.");
+    const n = await notifyThreadMessage({
+      schoolId: school.id,
+      threadId: sent.threadId,
+      classId: sent.classId,
+      studentUserId: sent.studentUserId,
+      studentName: sent.studentName,
+      authorUserId: parent.userId,
+      preview: sent.preview,
+    });
+    check("ярианы мэдэгдэл явав", n.recipients >= 1, n.recipients + " хүн");
+
+    const mine = await db
+      .select({ id: notifications.id })
+      .from(notifications)
+      .where(and(eq(notifications.userId, parent.userId), eq(notifications.kind, "THREAD_MESSAGE")));
+    check("бичсэн эцэг эх өөртөө мэдэгдэл авахгүй", mine.length === 0);
+
+    const toTeacher = await db
+      .select({ id: notifications.id })
+      .from(notifications)
+      .where(and(eq(notifications.userId, teacher.id), eq(notifications.kind, "THREAD_MESSAGE")));
+    check("багшид ярианы мөр бичигдэв", toTeacher.length === 1);
+
+    // ⚠️ Хязгаар: хоёр дахь мессежийн мөр БИЧИГДЭНЭ, зөвхөн түлхэлт дарагдана.
+    const sent2 = await sendMessage(parent, tid2, "Хоёр дахь мессеж.");
+    await notifyThreadMessage({
+      schoolId: school.id,
+      threadId: sent2.threadId,
+      classId: sent2.classId,
+      studentUserId: sent2.studentUserId,
+      studentName: sent2.studentName,
+      authorUserId: parent.userId,
+      preview: sent2.preview,
+    });
+    const after = await db
+      .select({ id: notifications.id })
+      .from(notifications)
+      .where(and(eq(notifications.userId, teacher.id), eq(notifications.kind, "THREAD_MESSAGE")));
+    check("хязгаар мөр бичихийг зогсоохгүй", after.length === 2, after.length + " мөр");
+
+    await db.delete(threads).where(eq(threads.id, tid2));
+    await db.delete(notifications).where(eq(notifications.userId, teacher.id));
   }
 
   console.log();

@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { acceptParentInvite } from "@/server/invite/service";
+import { notifyGuardianPending } from "@/server/notify/push";
 
 const RELATIONS = ["MOTHER", "FATHER", "GUARDIAN"] as const;
 
@@ -38,6 +39,22 @@ export async function joinAsParent(formData: FormData): Promise<void> {
       АЛЬ_ХЭДИЙН: "ali-hediin",
     }[result.reason];
     redirect(`/join/${token}?aldaa=${code}`);
+  }
+
+  /*
+    Багшид хэлнэ. Үүнгүйгээр эцэг эх «хүлээж байна» дэлгэц дээр сууж, багш
+    нь юу ч мэдэхгүй өнгөрдөг байв — пилотын эхний өдөр 25 удаа давтагдах
+    алдаа. Мэдэгдэл бүтэхгүй байж болно, тэрнээс болж нэгдэлт унахгүй.
+  */
+  try {
+    await notifyGuardianPending({
+      schoolId: result.schoolId,
+      classId: result.classId,
+      studentName: result.studentName,
+      parentName: result.parentName,
+    });
+  } catch (err) {
+    console.error("Багшид мэдэгдэхэд алдаа:", err);
   }
 
   // ⚠️ Сесс үүсгэхгүй. Багш батлах хүртэл харах зүйл алга — нэвтрүүлбэл

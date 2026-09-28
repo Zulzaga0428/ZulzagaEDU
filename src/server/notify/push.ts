@@ -380,3 +380,157 @@ export async function notifyAnnouncement(args: {
 
   return { recipients: recipients.length };
 }
+
+/**
+ * Багш руу явах мэдэгдлийн ХЯЗГААР — цагт нэг удаа.
+ *
+ * Нэг багшид 25 гэр бүл ногддог (`docs/DECISIONS.md` §17). Эцэг эх бүр
+ * мессеж бичихэд утас дуугарвал багш хоёр өдрийн дараа мэдэгдлийг бүрмөсөн
+ * унтраана — тэгвэл хамгийн чухал мэдэгдэл ч очихоо болино.
+ *
+ * Мөр нь ҮРГЭЛЖ бичигдэнэ (тоолох, дараа харуулахад хэрэгтэй), зөвхөн
+ * утас руу түлхэхийг хязгаарлана.
+ */
+const TEACHER_PUSH_GAP_MINUTES = 60;
+
+async function pushedRecently(userId: string, kind: "GUARDIAN_PENDING" | "THREAD_MESSAGE") {
+  const [row] = await db
+    .select({ id: notifications.id })
+    .from(notifications)
+    .where(
+      and(
+        eq(notifications.userId, userId),
+        eq(notifications.kind, kind),
+        gte(
+          notifications.createdAt,
+          sql`now() - interval '${sql.raw(String(TEACHER_PUSH_GAP_MINUTES))} minutes'`,
+        ),
+      ),
+    )
+    .limit(1);
+  return Boolean(row);
+}
+
+/** Тухайн ангийг заадаг багш нар. */
+async function teachersOfClass(classId: string): Promise<string[]> {
+  const rows = await db
+    .select({ userId: classMembers.userId })
+    .from(classMembers)
+    .where(
+      and(
+        eq(classMembers.classId, classId),
+        eq(classMembers.role, "TEACHER"),
+        eq(classMembers.status, "ACTIVE"),
+      ),
+    );
+  return rows.map((r) => r.userId);
+}
+
+/**
+ * Эцэг эх нэгдэх хүсэлт гаргав — багшид хэлнэ.
+ *
+ * Үүнгүйгээр эцэг эх «батлахыг хүлээж байна» гэж сууж, багш нь мэдэхгүй
+ * өнгөрдөг байв. Пилотын эхний өдөр 25 эцэг эх нэгдэхэд яг ингэх байсан.
+ */
+export async function notifyGuardianPending(args: {
+  schoolId: string;
+  classId: string;
+  studentName: string;
+  parentName: string;
+}): Promise<{ recipients: number }> {
+  const teachers = await teachersOfClass(args.classId);
+  if (teachers.length === 0) return { recipients: 0 };
+
+  const quiet = await Promise.all(teachers.map((id) => pushedRecently(id, "GUARDIAN_PENDING")));
+
+  await db.insert(notifications).values(
+    teachers.map((id) => ({
+      userId: id,
+      schoolId: args.schoolId,
+      kind: "GUARDIAN_PENDING" as const,
+      payload: { studentName: args.studentName, parentName: args.parentName },
+    })),
+  );
+
+  await Promise.all(
+    teachers.map((id, i) =>
+      quiet[i]
+        ? Promise.resolve()
+        : pushToUser(id, {
+            title: "Эцэг эх нэгдэхийг хүсэж байна",
+            body: `${args.parentName} — ${args.studentName}`,
+            url: "/bagsh/urilga",
+            tag: "guardian-pending",
+          }),
+    ),
+  );
+
+  return { recipients: teachers.length };
+}
+
+/**
+ * Ярианд шинэ мессеж ирэв.
+ *
+ * Эцэг эх рүү шууд очно — тэд цөөхөн мессеж хүлээдэг. Багш руу цагт нэг
+ * удаа, учир нь 25 гэр бүлээс ирнэ.
+ */
+export async function notifyThreadMessage(args: {
+  schoolId: string;
+  threadId: string;
+  classId: string;
+  studentUserId: string;
+  studentName: string;
+  authorUserId: string;
+  preview: string;
+}): Promise<{ recipients: number }> {
+  const teachers = await teachersOfClass(args.classId);
+  const parents = await db
+    .selectDistinct({ userId: guardians.parentUserId })
+    .from(guardians)
+    .where(
+      and(
+        eq(guardians.studentUserId, args.studentUserId),
+        eq(guardians.status, "ACTIVE"),
+      ),
+    );
+
+  // Бичсэн хүн өөрөө мэдэгдэл авахгүй.
+  const recipients = [
+    ...teachers.map((id) => ({ id, teacher: true })),
+    ...parents.map((p) => ({ id: p.userId, teacher: false })),
+  ].filter((r) => r.id !== args.authorUserId);
+
+  if (recipients.length === 0) return { recipients: 0 };
+
+  /*
+    ⚠️ Хязгаарыг мөр бичихээс ӨМНӨ шалгана. Эсрэгээр хийвэл дөнгөж бичсэн
+    мөрөө олж «саяхан илгээсэн» гэж үзээд утас руу хэзээ ч түлхэхгүй болно.
+  */
+  const quiet = await Promise.all(
+    recipients.map((r) => (r.teacher ? pushedRecently(r.id, "THREAD_MESSAGE") : false)),
+  );
+
+  await db.insert(notifications).values(
+    recipients.map((r) => ({
+      userId: r.id,
+      schoolId: args.schoolId,
+      kind: "THREAD_MESSAGE" as const,
+      payload: { threadId: args.threadId, studentName: args.studentName },
+    })),
+  );
+
+  await Promise.all(
+    recipients.map((r, i) =>
+      quiet[i]
+        ? Promise.resolve()
+        : pushToUser(r.id, {
+            title: r.teacher ? `${args.studentName} — эцэг эхээс` : "Багшаас мессеж",
+            body: args.preview.slice(0, 120),
+            url: `/yaria/${args.threadId}`,
+            tag: `thread-${args.threadId}`,
+          }),
+    ),
+  );
+
+  return { recipients: recipients.length };
+}

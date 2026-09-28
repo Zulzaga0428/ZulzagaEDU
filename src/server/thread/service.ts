@@ -167,11 +167,19 @@ export async function openThread(viewer: Viewer, threadId: string): Promise<Thre
 }
 
 /** Мессеж бичих. Хүүхэд бичихгүй, эрхгүй хүн бичихгүй. */
+export type SentMessage = {
+  threadId: string;
+  classId: string;
+  studentUserId: string;
+  studentName: string;
+  preview: string;
+};
+
 export async function sendMessage(
   viewer: Viewer,
   threadId: string,
   body: string,
-): Promise<void> {
+): Promise<SentMessage> {
   if (!(await canSee(viewer, threadId))) throw new AccessError("ЭРХГҮЙ");
 
   const text = body.trim();
@@ -193,6 +201,25 @@ export async function sendMessage(
 
   // Бичсэн хүн өөрийнхөө мессежийг уншаагүй гэж тоолуулахгүй.
   await markRead(viewer, threadId);
+
+  const [meta] = await db
+    .select({
+      classId: threads.classId,
+      studentUserId: threads.studentUserId,
+      studentName: users.name,
+    })
+    .from(threads)
+    .innerJoin(users, eq(users.id, threads.studentUserId))
+    .where(eq(threads.id, threadId))
+    .limit(1);
+
+  return {
+    threadId,
+    classId: meta.classId,
+    studentUserId: meta.studentUserId,
+    studentName: meta.studentName,
+    preview: text,
+  };
 }
 
 /** Эцэг эх хүүхдийнхээ талаар яриа эхлүүлнэ. */

@@ -65,6 +65,9 @@ export const notificationKind = pgEnum("notification_kind", [
   "HOMEWORK_CHECKED",
   "ANNOUNCEMENT",
   "GUARDIAN_VERIFIED",
+  /* Багш руу чиглэсэн анхны хоёр — өмнө нь багш огт мэдэгдэл авдаггүй байв. */
+  "GUARDIAN_PENDING",
+  "THREAD_MESSAGE",
 ]);
 
 /** Багшийн пилотын хөлсний төлөв. Эрхлэгч л өөрчилнө. */
