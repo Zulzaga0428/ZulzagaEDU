@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { CalendarClock, CircleCheck, Megaphone, MessageSquare, MessageSquareText, TriangleAlert, Users } from "lucide-react";
+import { CalendarClock, CircleCheck, Clock, Megaphone, MessageSquare, MessageSquareText, TriangleAlert, Users } from "lucide-react";
 import { getViewer } from "@/server/auth/access";
 import { startThreadAction } from "@/app/yaria/actions";
 import { AppShell } from "@/components/app-shell";
@@ -10,6 +10,7 @@ import { groupByDue, parentHeadline } from "@/server/homework/grouping";
 import { formatDueUb } from "@/server/homework/time";
 import { childWeek, lessonName, nextSchoolDay } from "@/server/schedule/service";
 import { parentAnnouncements } from "@/server/announce/service";
+import { myPendingLinks } from "@/server/invite/service";
 
 export const dynamic = "force-dynamic";
 
@@ -79,6 +80,8 @@ export default async function ParentHome() {
 
   // Эцэг эх ангид гишүүн биш — зөвхөн батлагдсан хүүхдээрээ дамжина.
   const children = await myChildren(viewer);
+  // Батлагдаагүй хүсэлт — хоосон дэлгэцийг зөв тайлбарлахад хэрэгтэй.
+  const pending = children.length === 0 ? await myPendingLinks(viewer) : [];
   const cards = await Promise.all(
     children.map(async (child) => {
       const [items, week] = await Promise.all([
@@ -96,8 +99,22 @@ export default async function ParentHome() {
     <AppShell
       viewer={viewer}
       eyebrow="Эцэг эхийн орон зай"
-      title={attention > 0 ? "Өнөөдөр анхаарах зүйл байна" : "Бүх зүйл хэвийн"}
-      subtitle="Хүүхдийнхээ өнөөдрийг 30 секундэд."
+      /*
+        Хараахан юу ч харж чадахгүй эцэг эхэд «бүх зүйл хэвийн» гэж хэлэх нь
+        доорх хүлээлтийн картаа зөрчинө.
+      */
+      title={
+        pending.length > 0
+          ? "Хүлээж байна"
+          : attention > 0
+            ? "Өнөөдөр анхаарах зүйл байна"
+            : "Бүх зүйл хэвийн"
+      }
+      subtitle={
+        pending.length > 0
+          ? "Багш баталмагц эхэлнэ."
+          : "Хүүхдийнхээ өнөөдрийг 30 секундэд."
+      }
     >
       {notices.length > 0 && (
         <section>
@@ -120,7 +137,29 @@ export default async function ParentHome() {
         </section>
       )}
 
-      {cards.length === 0 ? (
+      {cards.length === 0 && pending.length > 0 ? (
+        /*
+          Урилгаар нэгдсэн ч багш батлаагүй байгаа эцэг эх. Өмнө нь «багшаас
+          урилга авна уу» гэж харуулдаг байсан нь буруу: тэр урилгаа аль
+          хэдийн ашигласан. Дахин уншуулбал «аль хэдийн» гэсэн алдаа авна.
+        */
+        <Card className="border-warn-line bg-warn-bg">
+          <div className="flex items-start gap-3">
+            <IconBox icon={Clock} tint="шар" />
+            <div className="min-w-0">
+              <p className="font-extrabold text-ink">Багшийн баталгааг хүлээж байна</p>
+              <p className="mt-1 text-sm text-ink-soft">
+                {pending.map((p) => p.studentName).join(", ")} — багш танийг
+                баталгаажуулмагц даалгавар нь энд харагдана.
+              </p>
+              <p className="mt-2 text-xs text-ink-faint">
+                Энэ алхам нь хүүхдийн мэдээллийг хамгаалахад зориулагдсан. Удвал
+                багшдаа сануулаарай.
+              </p>
+            </div>
+          </div>
+        </Card>
+      ) : cards.length === 0 ? (
         <Empty icon={Users}>Холбогдсон хүүхэд алга байна. Багшаас урилга авна уу.</Empty>
       ) : (
         cards.map(({ child, groups, nextDay }) => {

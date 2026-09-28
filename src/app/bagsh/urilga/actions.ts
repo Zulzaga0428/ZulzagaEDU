@@ -5,6 +5,7 @@ import { requireViewer } from "@/server/auth/access";
 import QRCode from "qrcode";
 import { createParentInvite, decideGuardian } from "@/server/invite/service";
 import { addStudent, resetStudentPin } from "@/server/students/service";
+import { notifyGuardianApproved } from "@/server/notify/push";
 
 /**
  * Урилгын линк ба QR-ыг үүсгэнэ.
@@ -40,7 +41,27 @@ export async function approveGuardianAction(formData: FormData): Promise<void> {
     throw new Error("Дутуу утга.");
   }
 
-  await decideGuardian(viewer, id, decision);
+  const result = await decideGuardian(viewer, id, decision);
+
+  /*
+    Батлагдсаныг эцэг эхэд хэлнэ. Үүнгүйгээр тэд орой хүсэлт илгээгээд,
+    багш маргааш өглөө батлаад, эцэг эх нь хэзээ нээхээ мэдэхгүй хүлээнэ.
+
+    Татгалзсан тохиолдолд мэдэгдэхгүй: шалтгааныг апп тайлбарлаж чадахгүй,
+    багш өөрөө ярих нь зөв.
+  */
+  if (result.approved) {
+    try {
+      await notifyGuardianApproved({
+        schoolId: viewer.schoolId,
+        parentUserId: result.parentUserId,
+        studentName: result.studentName,
+      });
+    } catch (err) {
+      console.error("Эцэг эхэд мэдэгдэхэд алдаа:", err);
+    }
+  }
+
   revalidatePath("/bagsh/urilga");
   revalidatePath("/bagsh");
 }

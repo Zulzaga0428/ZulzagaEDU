@@ -306,17 +306,28 @@ export async function pendingGuardians(
  * ⚠️ Энэ бол хүүхдийн өгөгдлийн ГОЛ ХААЛГА. Өөр хаанаас ч `ACTIVE`
  * болгох зам байх ёсгүй.
  */
+export type GuardianDecision = {
+  parentUserId: string;
+  studentUserId: string;
+  studentName: string;
+  approved: boolean;
+};
+
 export async function decideGuardian(
   viewer: Viewer,
   guardianId: string,
   decision: "ACTIVE" | "REJECTED",
-): Promise<void> {
+): Promise<GuardianDecision> {
   if (viewer.role !== "TEACHER" && viewer.role !== "ACADEMIC_MANAGER") {
     throw new AccessError("ЭРХГҮЙ");
   }
 
   const [row] = await db
-    .select({ studentUserId: guardians.studentUserId, status: guardians.status })
+    .select({
+      studentUserId: guardians.studentUserId,
+      parentUserId: guardians.parentUserId,
+      status: guardians.status,
+    })
     .from(guardians)
     .where(eq(guardians.id, guardianId))
     .limit(1);
@@ -359,6 +370,42 @@ export async function decideGuardian(
       meta: { studentUserId: row.studentUserId },
     });
   });
+
+  const [child] = await db
+    .select({ name: users.name })
+    .from(users)
+    .where(eq(users.id, row.studentUserId))
+    .limit(1);
+
+  return {
+    parentUserId: row.parentUserId,
+    studentUserId: row.studentUserId,
+    studentName: child?.name ?? "",
+    approved: decision === "ACTIVE",
+  };
+}
+
+export type PendingLink = { studentName: string };
+
+/**
+ * Эцэг эх өөрийн БАТЛАГДААГҮЙ хүсэлтүүдээ харна.
+ *
+ * Энэ байхгүй үед: урилгаар нэгдсэн эцэг эх нэвтэрвэл «Холбогдсон хүүхэд
+ * алга байна. Багшаас урилга авна уу» гэж харж байв — тэр урилгаа аль
+ * хэдийн ашигласан атал. Дахин уншуулбал «аль хэдийн» гэсэн алдаа авна.
+ * Хүлээх дэлгэц нь «Нэвтрэх» гэж уриад байхад нэвтэрвэл ийм зөрчилтэй
+ * мессеж угтдаг байв — пилотын эхний өдөр 25 удаа давтагдана.
+ */
+export async function myPendingLinks(viewer: Viewer): Promise<PendingLink[]> {
+  if (viewer.role !== "PARENT") return [];
+
+  return db
+    .select({ studentName: users.name })
+    .from(guardians)
+    .innerJoin(users, eq(users.id, guardians.studentUserId))
+    .where(
+      and(eq(guardians.parentUserId, viewer.userId), eq(guardians.status, "PENDING")),
+    );
 }
 
 export type ClassStudent = {

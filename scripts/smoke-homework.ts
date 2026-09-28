@@ -32,6 +32,7 @@ import {
   homeworkRoster,
   listClassHomework,
   markDone,
+  myChildren,
   myHomework,
   strugglingStudents,
   undoDone,
@@ -76,6 +77,7 @@ import {
   decideGuardian,
   pendingGuardians,
   readInvite,
+  myPendingLinks,
 } from "../src/server/invite/service";
 import { childrenOf } from "../src/server/auth/access";
 import { addStudent, resetStudentPin } from "../src/server/students/service";
@@ -1318,6 +1320,52 @@ async function main() {
     await deleteFile(shotU.id);
     await deleteHomework(asTeacher, hwP);
     await deleteHomework(asTeacher, hwU);
+  }
+
+  console.log();
+  console.log("45. Батлагдаагүй эцэг эхийн дэлгэц");
+  {
+    // Шинэ эцэг эх урилгаар нэгдээд, багш хараахан батлаагүй байдал.
+    const inv2 = await createParentInvite(asTeacher, klass.id, students[2].id);
+    const acc2 = await acceptParentInvite(inv2.token, {
+      name: "Хүлээгч Эцэг",
+      phone: "99119911",
+      pin: "7351",
+      relation: "MOTHER",
+    });
+    check("урилга хүлээн авав", acc2.ok === true);
+    if (!acc2.ok) throw new Error("урилга бүтсэнгүй");
+
+    const waiting: Viewer = {
+      userId: acc2.userId,
+      schoolId: school.id,
+      role: "PARENT",
+    };
+
+    check("хүүхэд хараахан харагдахгүй", (await myChildren(waiting)).length === 0);
+    const links = await myPendingLinks(waiting);
+    check("хүлээгдэж буй хүсэлт харагдав", links.length === 1, links[0]?.studentName);
+    check("хүүхдийн нэр зөв", links[0]?.studentName === students[2].name);
+
+    // Багш батласны дараа хүсэлт жагсаалтаас гарна.
+    const pend = await pendingGuardians(asTeacher, klass.id);
+    const mine = pend.find((p) => p.studentName === students[2].name);
+    check("багшид хүсэлт харагдав", mine !== undefined);
+    const decided = await decideGuardian(asTeacher, mine!.id, "ACTIVE");
+    check("батлахад хүүхдийн нэр буцав", decided.studentName === students[2].name);
+    check("батлагдсан гэж буцав", decided.approved === true);
+    check("батласны дараа хүлээлт хоосон", (await myPendingLinks(waiting)).length === 0);
+    check("батласны дараа хүүхэд харагдав", (await myChildren(waiting)).length === 1);
+
+    // Багш, сурагч энэ жагсаалтыг хэзээ ч харахгүй.
+    check("багшид хүлээлтийн жагсаалт хоосон", (await myPendingLinks(asTeacher)).length === 0);
+    check("сурагчид хүлээлтийн жагсаалт хоосон", (await myPendingLinks(s0)).length === 0);
+
+    await db.delete(guardians).where(eq(guardians.parentUserId, acc2.userId));
+    await db.delete(memberships).where(eq(memberships.userId, acc2.userId));
+    await db.delete(credentialsTable).where(eq(credentialsTable.userId, acc2.userId));
+    await db.delete(notifications).where(eq(notifications.userId, acc2.userId));
+    await db.delete(users).where(eq(users.id, acc2.userId));
   }
 
   console.log();

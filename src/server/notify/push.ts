@@ -534,3 +534,33 @@ export async function notifyThreadMessage(args: {
 
   return { recipients: recipients.length };
 }
+
+/**
+ * Багш батласныг эцэг эхэд хэлнэ.
+ *
+ * Тэд орой хүсэлт илгээгээд, багш маргааш өглөө батладаг. Хэлэхгүй бол
+ * эцэг эх хэзээ нээхээ мэдэхгүй хүлээнэ.
+ *
+ * ⚠️ Ихэнх тохиолдолд түлхэлт ХҮРЭХГҮЙ: эцэг эх хараахан нэвтэрч,
+ * мэдэгдэл зөвшөөрөөгүй байдаг. Мөр нь бичигдэх тул дараа «сүүлд
+ * харснаас хойш юу болсон» гэдэгт ашиглагдана.
+ */
+export async function notifyGuardianApproved(args: {
+  schoolId: string;
+  parentUserId: string;
+  studentName: string;
+}): Promise<void> {
+  await db.insert(notifications).values({
+    userId: args.parentUserId,
+    schoolId: args.schoolId,
+    kind: "GUARDIAN_VERIFIED",
+    payload: { studentName: args.studentName },
+  });
+
+  await pushToUser(args.parentUserId, {
+    title: "Багш баталлаа",
+    body: `${args.studentName}-ийн даалгаврыг харж эхэлнэ үү.`,
+    url: "/etseg-eh",
+    tag: "guardian-approved",
+  });
+}
