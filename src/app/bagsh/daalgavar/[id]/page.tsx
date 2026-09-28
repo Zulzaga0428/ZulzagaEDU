@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Pencil } from "lucide-react";
 import { redirect } from "next/navigation";
 import { getViewer } from "@/server/auth/access";
 import { AppShell } from "@/components/app-shell";
@@ -169,6 +170,15 @@ export default async function HomeworkRosterPage({ params }: PageProps<"/bagsh/d
           Энэ ангид сурагч алга байна.
         </p>
       )}
+
+      {/* Засах нь устгахаас ДЭЭГҮҮР — устгах бол сүүлийн арга. */}
+      <Link
+        href={`/bagsh/daalgavar/${id}/zasah`}
+        className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-brand/50 bg-surface px-4 py-3.5 font-extrabold text-brand hover:bg-surface-soft"
+      >
+        <Pencil className="h-4 w-4" strokeWidth={2.6} />
+        Засах
+      </Link>
 
       <form action={deleteHomeworkAction} className="border-t border-line pt-5">
         <input type="hidden" name="homeworkId" value={id} />

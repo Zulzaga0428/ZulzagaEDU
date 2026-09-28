@@ -10,6 +10,7 @@ import {
   deleteHomework,
   myClasses,
   schoolSubjects,
+  updateHomework,
 } from "@/server/homework/service";
 import { attachToHomework } from "@/server/files/storage";
 import { endOfDayUb } from "@/server/homework/time";
@@ -134,4 +135,39 @@ export async function deleteHomeworkAction(formData: FormData): Promise<void> {
   await deleteHomework(viewer, homeworkId);
   revalidatePath("/bagsh");
   redirect("/bagsh");
+}
+
+/**
+ * Даалгаврыг засна.
+ *
+ * Устгаад дахин үүсгэх нь сурагчдын «хийсэн» тэмдэг, дэвтрийн зургийг
+ * бүгдийг устгана. Багш нэг үсэг андуурсны төлөө тэгэх учир алга.
+ */
+export async function updateHomeworkAction(formData: FormData): Promise<void> {
+  const viewer = await requireViewer();
+
+  const homeworkId = formData.get("homeworkId");
+  const title = formData.get("title");
+  const description = formData.get("description");
+  const subjectId = formData.get("subjectId");
+  const dueDate = formData.get("dueDate");
+
+  if (
+    typeof homeworkId !== "string" ||
+    typeof title !== "string" ||
+    typeof dueDate !== "string"
+  ) {
+    throw new Error("Дутуу утга.");
+  }
+
+  await updateHomework(viewer, homeworkId, {
+    title,
+    description: typeof description === "string" ? description : null,
+    subjectId: typeof subjectId === "string" && subjectId !== "" ? subjectId : null,
+    dueAt: endOfDayUb(dueDate),
+  });
+
+  revalidatePath(`/bagsh/daalgavar/${homeworkId}`);
+  revalidatePath("/bagsh");
+  redirect(`/bagsh/daalgavar/${homeworkId}`);
 }

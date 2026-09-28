@@ -27,10 +27,12 @@ import {
   childHomework,
   deleteHomework,
   createHomework,
+  homeworkForEdit,
   homeworkRoster,
   listClassHomework,
   markDone,
   myHomework,
+  updateHomework,
 } from "../src/server/homework/service";
 import { endOfDayUb, todayUb, addDaysUb } from "../src/server/homework/time";
 import { groupByDue, parentHeadline, studentHeadline } from "../src/server/homework/grouping";
@@ -1139,6 +1141,72 @@ async function main() {
 
     await db.delete(threads).where(eq(threads.id, tid2));
     await db.delete(notifications).where(eq(notifications.userId, teacher.id));
+  }
+
+  console.log();
+  console.log("42. Даалгавар засах");
+  {
+    const hwE = await createHomework(asTeacher, {
+      classId: klass.id,
+      subjectId: null,
+      title: "Буруу бичсэн гарчиг",
+      description: null,
+      dueAt: endOfDayUb(addDaysUb(todayUb(), 1)),
+    });
+
+    // Хоёр сурагч хийчихсэн байя — засахад ЭДГЭЭР АЛДАГДАХ ЁСГҮЙ.
+    await markDone(s0, hwE);
+    await markDone(s1, hwE);
+    const before = await homeworkRoster(asTeacher, hwE);
+    const doneBefore = before.rows.filter((r) => r.status !== "ASSIGNED").length;
+    check("засахын өмнө 2 хүн хийсэн", doneBefore === 2, doneBefore + " хийсэн");
+
+    await updateHomework(asTeacher, hwE, {
+      title: "Зөв гарчиг",
+      description: "Нэмэлт заавар.",
+      subjectId: null,
+      dueAt: endOfDayUb(addDaysUb(todayUb(), 2)),
+    });
+
+    const after = await homeworkRoster(asTeacher, hwE);
+    check("гарчиг солигдов", after.title === "Зөв гарчиг", after.title);
+    check(
+      "ХИЙСЭН ТЭМДЭГ ХЭВЭЭР",
+      after.rows.filter((r) => r.status !== "ASSIGNED").length === 2,
+    );
+    check("сурагчийн тоо хэвээр", after.rows.length === before.rows.length);
+
+    const forStudent = (await myHomework(s0)).find((h) => h.id === hwE);
+    check("сурагч шинэ гарчгийг харав", forStudent?.title === "Зөв гарчиг");
+
+    await refuses("хоосон гарчгаар засах", () =>
+      updateHomework(asTeacher, hwE, {
+        title: "   ",
+        description: null,
+        subjectId: null,
+        dueAt: endOfDayUb(todayUb()),
+      }),
+    );
+    await refuses("өөр багш засах", () =>
+      updateHomework(asTeacher2, hwE, {
+        title: "Халдлага",
+        description: null,
+        subjectId: null,
+        dueAt: endOfDayUb(todayUb()),
+      }),
+    );
+    await refuses("сурагч засах", () =>
+      updateHomework(s0, hwE, {
+        title: "Халдлага",
+        description: null,
+        subjectId: null,
+        dueAt: endOfDayUb(todayUb()),
+      }),
+    );
+    await refuses("өөр багш засах маягтыг нээх", () => homeworkForEdit(asTeacher2, hwE));
+    check("эзэн нь засах маягтыг нээв", (await homeworkForEdit(asTeacher, hwE)).title === "Зөв гарчиг");
+
+    await deleteHomework(asTeacher, hwE);
   }
 
   console.log();

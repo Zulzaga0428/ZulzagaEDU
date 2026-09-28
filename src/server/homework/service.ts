@@ -402,6 +402,89 @@ export async function deleteHomework(viewer: Viewer, homeworkId: string): Promis
   });
 }
 
+/**
+ * Даалгаврыг засна.
+ *
+ * ⚠️ Устгаад дахин үүсгэхээс ЯЛГААТАЙ: сурагчдын «хийсэн» тэмдэг, дэвтрийн
+ * зураг, багшийн тэмдэглэл бүгд хэвээр үлдэнэ. Багш гарчигт нэг үсэг
+ * андуурсны төлөө 25 хүүхдийн ажлыг устгах учир байхгүй.
+ *
+ * Анги, сурагчийн жагсаалт өөрчлөгдөхгүй — зөвхөн гарчиг, тайлбар, хичээл,
+ * эцсийн хугацаа. Анги солих шаардлагатай бол шинээр үүсгэх нь зөв.
+ */
+export async function updateHomework(
+  viewer: Viewer,
+  homeworkId: string,
+  input: {
+    title: string;
+    description: string | null;
+    subjectId: string | null;
+    dueAt: Date;
+  },
+): Promise<void> {
+  if (viewer.role !== "TEACHER") throw new AccessError("ЭРХГҮЙ");
+
+  const [hw] = await db
+    .select({ classId: homework.classId, createdBy: homework.createdBy })
+    .from(homework)
+    .where(and(eq(homework.id, homeworkId), eq(homework.schoolId, viewer.schoolId)))
+    .limit(1);
+  if (!hw) throw new AccessError("ЭРХГҮЙ");
+  if (hw.createdBy !== viewer.userId) throw new AccessError("ЭРХГҮЙ");
+  if (!(await teachesClass(viewer.userId, hw.classId, viewer.schoolId))) {
+    throw new AccessError("ЭРХГҮЙ");
+  }
+
+  const title = input.title.trim();
+  if (title.length === 0) throw new Error("Гарчиг хоосон байна.");
+
+  await db.transaction(async (tx) => {
+    await tx
+      .update(homework)
+      .set({
+        title,
+        description: input.description?.trim() || null,
+        subjectId: input.subjectId,
+        dueAt: input.dueAt,
+      })
+      .where(eq(homework.id, homeworkId));
+
+    await tx.insert(auditLog).values({
+      schoolId: viewer.schoolId,
+      actorUserId: viewer.userId,
+      action: "HOMEWORK_EDITED",
+      targetType: "homework",
+      targetId: homeworkId,
+      meta: { title },
+    });
+  });
+}
+
+/** Засах формд харуулах утгууд. */
+export async function homeworkForEdit(viewer: Viewer, homeworkId: string) {
+  if (viewer.role !== "TEACHER") throw new AccessError("ЭРХГҮЙ");
+
+  const [row] = await db
+    .select({
+      id: homework.id,
+      title: homework.title,
+      description: homework.description,
+      subjectId: homework.subjectId,
+      dueAt: homework.dueAt,
+      classId: homework.classId,
+      createdBy: homework.createdBy,
+    })
+    .from(homework)
+    .where(and(eq(homework.id, homeworkId), eq(homework.schoolId, viewer.schoolId)))
+    .limit(1);
+
+  if (!row || row.createdBy !== viewer.userId) throw new AccessError("ЭРХГҮЙ");
+  if (!(await teachesClass(viewer.userId, row.classId, viewer.schoolId))) {
+    throw new AccessError("ЭРХГҮЙ");
+  }
+  return row;
+}
+
 /** Багш даалгавар өгөхөд сонгох хичээлүүд. */
 export async function schoolSubjects(viewer: Viewer) {
   return db
