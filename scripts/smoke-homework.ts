@@ -73,6 +73,7 @@ import {
   unassignTeacher,
 } from "../src/server/school/manage";
 import { signIn, issueStudentCredentials } from "../src/server/auth/credentials";
+import { devAccountExists, listDevAccounts } from "../src/server/auth/dev-login";
 import {
   acceptParentInvite,
   createParentInvite,
@@ -95,6 +96,7 @@ import { hashPin, verifyPin, isWeakPin, generateLoginCode, latinPrefix } from ".
 import {
   awardForHomework,
   childPoints,
+  isComingBack,
   myHistory,
   myPoints,
 } from "../src/server/points/service";
@@ -1505,6 +1507,103 @@ async function main() {
     await db.delete(studentAvatars).where(eq(studentAvatars.userId, students[0].id));
     await db.delete(pointsLedger).where(eq(pointsLedger.userId, students[0].id));
     for (const id of hwIds) await deleteHomework(asTeacher, id);
+  }
+
+  console.log();
+  console.log("48. Эргэж ирсэн хүүхдийн оноо");
+  {
+    process.env.POINTS_ENABLED = "1";
+    await db.delete(pointsLedger).where(eq(pointsLedger.userId, students[0].id));
+
+    // Анх удаа хийж байгаа хүүхэд «эргэж ирсэн» биш — зүгээр эхэлж байна.
+    check("анхны удаа эргэж ирсэн биш", (await isComingBack(s0)) === false);
+
+    const hwC1 = await createHomework(asTeacher, {
+      classId: klass.id, subjectId: null, title: "Эргэх 1",
+      description: null, dueAt: endOfDayUb(addDaysUb(todayUb(), 1)),
+    });
+    await awardForHomework(s0, hwC1, "HOMEWORK_DONE");
+    check("саяхан хийсэн бол эргэж ирсэн биш", (await isComingBack(s0)) === false);
+
+    // Сүүлийн мөрийг 3 хоногийн өмнөх болгож завсарлалт үүсгэе.
+    await db
+      .update(pointsLedger)
+      .set({ createdAt: new Date(Date.now() - 3 * 86_400_000) })
+      .where(eq(pointsLedger.userId, students[0].id));
+    check("3 хоног завсарласны дараа эргэж ирсэн", (await isComingBack(s0)) === true);
+
+    const hwC2 = await createHomework(asTeacher, {
+      classId: klass.id, subjectId: null, title: "Эргэх 2",
+      description: null, dueAt: endOfDayUb(addDaysUb(todayUb(), 1)),
+    });
+    await awardForHomework(s0, hwC2, "HOMEWORK_DONE");
+    await awardForHomework(s0, hwC2, "COMEBACK");
+    check("эргэж ирэх оноо 15", (await myPoints(s0)) === 10 + 10 + 15, (await myPoints(s0)) + " оноо");
+
+    // Дараагийн даалгавар дээр дахин эргэх оноо гарахгүй.
+    check("одоо дахин эргэж ирсэн биш", (await isComingBack(s0)) === false);
+
+    // Багш, эцэг эхэд хамаарахгүй.
+    check("багш эргэж ирэхгүй", (await isComingBack(asTeacher)) === false);
+
+    process.env.POINTS_ENABLED = "0";
+    check("туг унтраалттай бол эргэлт тооцохгүй", (await isComingBack(s0)) === false);
+
+    await db.delete(pointsLedger).where(eq(pointsLedger.userId, students[0].id));
+    await deleteHomework(asTeacher, hwC2);
+    await deleteHomework(asTeacher, hwC1);
+  }
+
+  console.log();
+  console.log("49. Хөгжүүлэлтийн нэвтрэлт — зөвхөн тестийн сургууль");
+  {
+    process.env.DEV_LOGIN_ENABLED = "1";
+    const list = await listDevAccounts();
+    check("тестийн сургуулийн хүмүүс жагсав", list.length > 0, list.length + " данс");
+    check(
+      "бүгд ТЕСТИЙН сургуулийнх",
+      list.every((a) => a.schoolId === school.id),
+      new Set(list.map((a) => a.schoolName)).size + " сургууль",
+    );
+
+    // Жинхэнэ сургууль үүсгээд, түүний хүн жагсаалтад ГАРАХГҮЙ байхыг шалгана.
+    const [realSchool] = await db
+      .insert(schools)
+      .values({ name: "Жинхэнэ сургууль", slug: "jinhene-" + Date.now() })
+      .returning({ id: schools.id });
+    const [realUser] = await db
+      .insert(users)
+      .values({ name: "Жинхэнэ Багш", phone: "99000" + String(Date.now()).slice(-4) })
+      .returning({ id: users.id });
+    await db
+      .insert(memberships)
+      .values({ userId: realUser.id, schoolId: realSchool.id, role: "TEACHER" });
+
+    const after = await listDevAccounts();
+    check(
+      "ЖИНХЭНЭ сургуулийн хүн жагсаалтад АЛГА",
+      !after.some((a) => a.schoolId === realSchool.id),
+    );
+    check(
+      "id мэдсэн ч жинхэнэ сургууль руу нэвтрэхгүй",
+      (await devAccountExists(realUser.id, realSchool.id, "TEACHER")) === false,
+    );
+    check(
+      "тестийн сургууль руу нэвтрэхэд саад алга",
+      (await devAccountExists(teacher.id, school.id, "TEACHER")) === true,
+    );
+
+    await db.delete(memberships).where(eq(memberships.userId, realUser.id));
+    await db.delete(users).where(eq(users.id, realUser.id));
+    await db.delete(schools).where(eq(schools.id, realSchool.id));
+
+    process.env.DEV_LOGIN_ENABLED = "0";
+    check("туг унтраалттай бол хоосон", (await listDevAccounts()).length === 0);
+    check(
+      "туг унтраалттай бол нэвтрэхгүй",
+      (await devAccountExists(teacher.id, school.id, "TEACHER")) === false,
+    );
+    process.env.DEV_LOGIN_ENABLED = "1";
   }
 
   console.log();

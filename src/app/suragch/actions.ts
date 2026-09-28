@@ -3,12 +3,18 @@
 import { revalidatePath } from "next/cache";
 import { requireViewer } from "@/server/auth/access";
 import { markDone, undoDone } from "@/server/homework/service";
-import { awardForHomework } from "@/server/points/service";
+import { awardForHomework, isComingBack } from "@/server/points/service";
 
 export async function markDoneAction(formData: FormData): Promise<void> {
   const viewer = await requireViewer();
   const homeworkId = formData.get("homeworkId");
   if (typeof homeworkId !== "string") throw new Error("Дутуу утга.");
+
+  /*
+    ⚠️ Завсарласан эсэхийг оноо бичихээс ӨМНӨ шалгана — дараа шалгавал
+    дөнгөж бичсэн мөрөө олж «саяхан идэвхтэй байсан» гэж дүгнэнэ.
+  */
+  const comeback = await isComingBack(viewer);
 
   await markDone(viewer, homeworkId);
 
@@ -17,6 +23,8 @@ export async function markDoneAction(formData: FormData): Promise<void> {
     оролцоо энд байхгүй (`docs/DECISIONS.md` §18).
   */
   await awardForHomework(viewer, homeworkId, "HOMEWORK_DONE");
+  if (comeback) await awardForHomework(viewer, homeworkId, "COMEBACK");
+
   revalidatePath("/suragch");
 }
 

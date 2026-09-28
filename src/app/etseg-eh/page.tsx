@@ -11,6 +11,9 @@ import { formatDueUb } from "@/server/homework/time";
 import { childWeek, lessonName, nextSchoolDay } from "@/server/schedule/service";
 import { parentAnnouncements } from "@/server/announce/service";
 import { myPendingLinks } from "@/server/invite/service";
+import { childPoints, pointsEnabled } from "@/server/points/service";
+import { selectedAvatar } from "@/server/points/avatars";
+import { Avatar } from "@/components/avatars";
 
 export const dynamic = "force-dynamic";
 
@@ -84,11 +87,17 @@ export default async function ParentHome() {
   const pending = children.length === 0 ? await myPendingLinks(viewer) : [];
   const cards = await Promise.all(
     children.map(async (child) => {
-      const [items, week] = await Promise.all([
+      const [items, week, points, avatarId] = await Promise.all([
         childHomework(viewer, child.id),
         childWeek(viewer, child.id),
+        pointsEnabled() ? childPoints(viewer, child.id) : Promise.resolve(null),
+        pointsEnabled() ? selectedAvatar(child.id) : Promise.resolve(null),
       ]);
-      return { child, groups: groupByDue(items), nextDay: nextSchoolDay(week) };
+      return {
+        child: { ...child, points, avatarId },
+        groups: groupByDue(items),
+        nextDay: nextSchoolDay(week),
+      };
     }),
   );
 
@@ -179,6 +188,23 @@ export default async function ParentHome() {
                   </span>
                 )}
               </FeatureCard>
+
+              {/*
+                Хүүхдийн цуглуулсан оноо (§18). Туг унтраалттай бол огт
+                гарахгүй. Эцэг эх өөрийн хүүхдийнхийг л харна — өөр хүүхдийн
+                оноо ХЭЗЭЭ Ч харагдахгүй.
+              */}
+              {child.points !== null && (
+                <div className="flex items-center gap-3 rounded-2xl border border-line bg-role-student px-4 py-3">
+                  <Avatar id={child.avatarId} size={40} />
+                  <div className="min-w-0 flex-1">
+                    <p className="font-extrabold text-navy">{child.points} оноо</p>
+                    <p className="text-xs text-ink-soft">
+                      Даалгавраа хийх бүрд цуглуулсан
+                    </p>
+                  </div>
+                </div>
+              )}
 
               {/*
                 Багштай холбогдох зам (`docs/DECISIONS.md` §17). Хүүхэд тус

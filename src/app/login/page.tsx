@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getViewer } from "@/server/auth/access";
-import { isDevLoginEnabled, listDevAccounts } from "@/server/auth/dev-login";
+import { devLoginUsable, listDevAccounts } from "@/server/auth/dev-login";
 import { ROLE_HOME, ROLE_LABEL, type MembershipRole } from "@/server/auth/roles";
 import { signInAs, signInWithPin } from "./actions";
 
@@ -22,7 +22,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   const { aldaa } = await searchParams;
   const error = typeof aldaa === "string" ? ERRORS[aldaa] : undefined;
 
-  const devOn = isDevLoginEnabled();
+  const devOn = await devLoginUsable();
   const accounts = devOn ? await listDevAccounts() : [];
   const byRole = ROLE_ORDER.map((role) => ({
     role,

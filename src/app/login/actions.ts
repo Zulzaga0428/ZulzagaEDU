@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { createSession, destroySession } from "@/server/auth/session";
-import { devAccountExists, isDevLoginEnabled } from "@/server/auth/dev-login";
+import { devAccountExists, devLoginUsable } from "@/server/auth/dev-login";
 import { signIn } from "@/server/auth/credentials";
 import { MEMBERSHIP_ROLES, ROLE_HOME, type MembershipRole } from "@/server/auth/roles";
 
@@ -15,7 +15,7 @@ function isRole(value: unknown): value is MembershipRole {
  * callback `createSession`-ийг дуудна. Доод давхаргад юу ч өөрчлөгдөхгүй.
  */
 export async function signInAs(formData: FormData): Promise<void> {
-  if (!isDevLoginEnabled()) {
+  if (!(await devLoginUsable())) {
     throw new Error("Түр нэвтрэлт идэвхгүй байна.");
   }
 

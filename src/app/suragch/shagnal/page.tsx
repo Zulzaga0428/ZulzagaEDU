@@ -109,6 +109,9 @@ export default async function RewardsPage() {
 
       <p className="text-center text-xs text-ink-faint">
         Даалгавраа хийхэд 10 оноо, дэвтрийнхээ зургийг илгээвэл нэмэлт 5 оноо.
+        <br />
+        Хэдэн өдөр завсарласны дараа эргэж ирвэл 15 оноо — эргэж ирэх нь
+        хамгийн хэцүү нь.
       </p>
     </AppShell>
   );

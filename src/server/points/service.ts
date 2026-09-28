@@ -1,5 +1,5 @@
 import "server-only";
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, gt, sql } from "drizzle-orm";
 import { db } from "@/server/db";
 import { homework, pointsLedger } from "@/server/db/schema";
 import { AccessError, childrenOf, type Viewer } from "@/server/auth/access";
@@ -26,6 +26,18 @@ import { AccessError, childrenOf, type Viewer } from "@/server/auth/access";
 
 /** Даалгавраа хийснээ тэмдэглэхэд. */
 export const POINTS_HOMEWORK_DONE = 10;
+/**
+ * Завсарласны дараа эргэж ирэхэд.
+ *
+ * Энгийн онооноос ӨНДӨР байх нь санаатай. Онооны систем өөрөө ялгааг
+ * гүнзгийрүүлдэг: бүгдийг хийдэг хүүхэд бүх шагналыг авч, хоцорсон нь
+ * түгжээтэй зургуудыг хараад цөхөрнө. Гэтэл яг тэр хүүхэд бол энэ аппын
+ * хамгийн их хэрэгтэй хүн. Эргэж ирэх нь хамгийн хэцүү алхам — түүнийг
+ * хамгийн сайн шагнана.
+ */
+export const POINTS_COMEBACK = 15;
+/** Хэдэн хоног завсарласны дараа «эргэж ирсэн» гэж үзэх вэ. */
+const COMEBACK_GAP_DAYS = 2;
 /** Дэвтрийнхээ зургийг илгээвэл нэмэлт. Энэ нь ХҮҮХДИЙН үйлдэл. */
 export const POINTS_PHOTO = 5;
 
@@ -33,7 +45,7 @@ export function pointsEnabled(): boolean {
   return process.env.POINTS_ENABLED === "1";
 }
 
-type Reason = "HOMEWORK_DONE" | "PHOTO";
+type Reason = "HOMEWORK_DONE" | "PHOTO" | "COMEBACK";
 
 /**
  * Оноо олгоно.
@@ -66,11 +78,41 @@ export async function awardForHomework(
     .values({
       schoolId: viewer.schoolId,
       userId: viewer.userId,
-      points: reason === "PHOTO" ? POINTS_PHOTO : POINTS_HOMEWORK_DONE,
+      points:
+        reason === "PHOTO"
+          ? POINTS_PHOTO
+          : reason === "COMEBACK"
+            ? POINTS_COMEBACK
+            : POINTS_HOMEWORK_DONE,
       reason,
       homeworkId,
     })
     .onConflictDoNothing();
+}
+
+/**
+ * Энэ хүүхэд завсарласны дараа эргэж ирж байна уу.
+ *
+ * ⚠️ Оноо олгохоос ӨМНӨ дуудна — эс бөгөөс дөнгөж бичсэн мөрөө олж
+ * «саяхан идэвхтэй байсан» гэж дүгнэнэ.
+ *
+ * Анх удаа хийж байгаа хүүхэд эргэж ирсэнд тооцогдохгүй: тэр завсарлаагүй,
+ * зүгээр л эхэлж байна.
+ */
+export async function isComingBack(viewer: Viewer): Promise<boolean> {
+  if (!pointsEnabled() || viewer.role !== "STUDENT") return false;
+
+  const [last] = await db
+    .select({ createdAt: pointsLedger.createdAt })
+    .from(pointsLedger)
+    .where(and(eq(pointsLedger.userId, viewer.userId), gt(pointsLedger.points, 0)))
+    .orderBy(desc(pointsLedger.createdAt))
+    .limit(1);
+
+  if (!last) return false;
+
+  const days = (Date.now() - last.createdAt.getTime()) / 86_400_000;
+  return days >= COMEBACK_GAP_DAYS;
 }
 
 /** Үлдэгдэл. Дэвтрийн нийлбэр — тусад нь хадгалсан тоо байхгүй. */

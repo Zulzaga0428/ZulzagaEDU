@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireViewer } from "@/server/auth/access";
 import { attachToSubmission, saveImage } from "@/server/files/storage";
-import { awardForHomework } from "@/server/points/service";
+import { awardForHomework, isComingBack } from "@/server/points/service";
 
 /**
  * Дэвтрийн зураг илгээх.
@@ -24,6 +24,9 @@ export async function uploadNotebookPhoto(formData: FormData): Promise<void> {
     throw new Error("Дутуу утга.");
   }
 
+  // Завсарласан эсэхийг мөр бичихээс өмнө (`points/service.ts`).
+  const comeback = await isComingBack(viewer);
+
   const bytes = new Uint8Array(await photo.arrayBuffer());
   const { id } = await saveImage(viewer, bytes, photo.type);
   await attachToSubmission(viewer, homeworkId, id);
@@ -34,6 +37,7 @@ export async function uploadNotebookPhoto(formData: FormData): Promise<void> {
   */
   await awardForHomework(viewer, homeworkId, "HOMEWORK_DONE");
   await awardForHomework(viewer, homeworkId, "PHOTO");
+  if (comeback) await awardForHomework(viewer, homeworkId, "COMEBACK");
 
   revalidatePath("/suragch");
 }
