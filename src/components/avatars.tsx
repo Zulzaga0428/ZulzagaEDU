@@ -140,16 +140,25 @@ function Mori() {
 function Temee() {
   return (
     <>
-      {/* Хоёр бөх нуруун ДЭЭР, урт хүзүү, жижиг толгой. */}
-      <path d="M20 78 Q26 52 40 60 Q52 44 64 60 Q80 54 84 78 Z" fill="#D6C08C" />
-      <path d="M58 62 Q60 40 66 26 L78 30 Q72 46 72 64 Z" fill="#E8D5A9" />
-      <ellipse cx="74" cy="24" rx="13" ry="11" fill="#E8D5A9" />
-      <ellipse cx="66" cy="16" rx="4" ry="5" fill="#C2A878" />
-      <circle cx="70" cy="21" r="2.8" fill="#1E293B" />
-      <circle cx="80" cy="21" r="2.8" fill="#1E293B" />
-      <ellipse cx="76" cy="30" rx="7" ry="5" fill="#C2A878" />
-      <circle cx="73" cy="29" r="1.4" fill="#1E293B" />
-      <circle cx="79" cy="29" r="1.4" fill="#1E293B" />
+      {/*
+        Бөх ХАСАГДСАН. Толгойн дээр хоёр товгор тавихад хулгана шиг
+        харагдана — дээр хоёр бөөрөнхий бол бүх нийтийн «чих»-ний дохио.
+        Тэмээг жижиг хэмжээнд таниулах нь: маш урт нарийн нүүр, доогуур
+        байрласан жижиг чих, хүнд зовхи, унжсан зузаан доод уруул.
+      */}
+      <ellipse cx="28" cy="34" rx="6" ry="8" fill="#C2A878" transform="rotate(-20 28 34)" />
+      <ellipse cx="72" cy="34" rx="6" ry="8" fill="#C2A878" transform="rotate(20 72 34)" />
+      <ellipse cx="50" cy="52" rx="17" ry="30" fill="#E8D5A9" />
+      {/* Хүнд зовхи — тэмээ нойрмог харцтай */}
+      <path d="M40 34 Q44 30 48 34" stroke="#C2A878" strokeWidth="3" fill="none" strokeLinecap="round" />
+      <path d="M52 34 Q56 30 60 34" stroke="#C2A878" strokeWidth="3" fill="none" strokeLinecap="round" />
+      <circle cx="44" cy="39" r="3" fill="#1E293B" />
+      <circle cx="56" cy="39" r="3" fill="#1E293B" />
+      <ellipse cx="50" cy="62" rx="10" ry="8" fill="#D6C08C" />
+      <ellipse cx="46" cy="60" rx="1.8" ry="2.6" fill="#1E293B" />
+      <ellipse cx="54" cy="60" rx="1.8" ry="2.6" fill="#1E293B" />
+      {/* Унжсан зузаан доод уруул */}
+      <path d="M42 68 Q50 72 58 68 Q56 84 50 84 Q44 84 42 68 Z" fill="#C2A878" />
     </>
   );
 }
