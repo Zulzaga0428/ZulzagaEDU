@@ -485,6 +485,74 @@ export async function homeworkForEdit(viewer: Viewer, homeworkId: string) {
   return row;
 }
 
+export type StrugglingStudent = {
+  studentUserId: string;
+  name: string;
+  done: number;
+  total: number;
+};
+
+/**
+ * Сүүлийн үеийн даалгавруудаас хэн хамгийн бага хийсэн бэ.
+ *
+ * Багш нэг даалгаврын «хэн хийсэн»-ийг хардаг ч, ХЭВ ШИНЖ харагддаггүй
+ * байв: Болд өчигдөр хийгээгүй нь нэг хэрэг, сүүлийн таваас нэгийг хийсэн
+ * нь огт өөр хэрэг. Эхнийх нь мартсан, хоёр дахь нь тусламж хэрэгтэй.
+ *
+ * Багшид ажил НЭМЭХГҮЙ (`docs/DECISIONS.md` §16): тоолох ажлыг нь хийж
+ * өгч байгаа юм. Багш өөрөө дэвтэр гүйлгэж тоолохгүй.
+ *
+ * ⚠️ Зөвхөн ангийнхаа багшид. Эцэг эх өөр хүүхдийн талаар ийм жагсаалт
+ * хэзээ ч харахгүй.
+ */
+export async function strugglingStudents(
+  viewer: Viewer,
+  classId: string,
+  opts: { window?: number; minCount?: number; maxRatio?: number; limit?: number } = {},
+): Promise<StrugglingStudent[]> {
+  if (viewer.role !== "TEACHER") throw new AccessError("ЭРХГҮЙ");
+  if (!(await teachesClass(viewer.userId, classId, viewer.schoolId))) {
+    throw new AccessError("ЭРХГҮЙ");
+  }
+
+  const window = opts.window ?? 10;
+  // Гурваас цөөн даалгавраар дүгнэхгүй — санамсаргүй байдал хэт их.
+  const minCount = opts.minCount ?? 3;
+  const maxRatio = opts.maxRatio ?? 0.5;
+  const limit = opts.limit ?? 5;
+
+  const recent = await db
+    .select({ id: homework.id })
+    .from(homework)
+    .where(and(eq(homework.classId, classId), eq(homework.schoolId, viewer.schoolId)))
+    .orderBy(desc(homework.dueAt))
+    .limit(window);
+
+  if (recent.length < minCount) return [];
+
+  const rows = await db
+    .select({
+      studentUserId: homeworkSubmissions.studentUserId,
+      name: users.name,
+      total: sql<number>`count(*)::int`,
+      done: sql<number>`count(*) filter (where ${homeworkSubmissions.status} <> 'ASSIGNED')::int`,
+    })
+    .from(homeworkSubmissions)
+    .innerJoin(users, eq(users.id, homeworkSubmissions.studentUserId))
+    .where(
+      inArray(
+        homeworkSubmissions.homeworkId,
+        recent.map((r) => r.id),
+      ),
+    )
+    .groupBy(homeworkSubmissions.studentUserId, users.name);
+
+  return rows
+    .filter((r) => r.total >= minCount && r.done / r.total < maxRatio)
+    .sort((a, b) => a.done / a.total - b.done / b.total || a.name.localeCompare(b.name))
+    .slice(0, limit);
+}
+
 /** Багш даалгавар өгөхөд сонгох хичээлүүд. */
 export async function schoolSubjects(viewer: Viewer) {
   return db

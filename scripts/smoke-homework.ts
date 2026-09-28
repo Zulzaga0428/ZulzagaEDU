@@ -12,6 +12,7 @@ import {
   classMembers,
   classes,
   credentials as credentialsTable,
+  homework as homeworkTable,
   notifications,
   teacherIncentives,
   threads,
@@ -32,6 +33,7 @@ import {
   listClassHomework,
   markDone,
   myHomework,
+  strugglingStudents,
   updateHomework,
 } from "../src/server/homework/service";
 import { endOfDayUb, todayUb, addDaysUb } from "../src/server/homework/time";
@@ -1207,6 +1209,59 @@ async function main() {
     check("эзэн нь засах маягтыг нээв", (await homeworkForEdit(asTeacher, hwE)).title === "Зөв гарчиг");
 
     await deleteHomework(asTeacher, hwE);
+  }
+
+  console.log();
+  console.log("43. Дэмжлэг хэрэгтэй хүүхэд");
+  {
+    // Цэвэр талбар — өмнөх хэсгүүдийн даалгаврууд саад болохгүйн тулд.
+    await db.delete(homeworkTable).where(eq(homeworkTable.classId, klass.id));
+
+    check("даалгавар цөөн үед хоосон", (await strugglingStudents(asTeacher, klass.id)).length === 0);
+
+    // 4 даалгавар өгье. s0 нэгийг нь хийнэ, s1 бүгдийг хийнэ.
+    const ids: string[] = [];
+    for (let i = 0; i < 4; i++) {
+      ids.push(
+        await createHomework(asTeacher, {
+          classId: klass.id,
+          subjectId: null,
+          title: `Хэв шинж ${i + 1}`,
+          description: null,
+          dueAt: endOfDayUb(addDaysUb(todayUb(), i + 1)),
+        }),
+      );
+    }
+    await markDone(s0, ids[0]);
+    for (const id of ids) await markDone(s1, id);
+
+    const list = await strugglingStudents(asTeacher, klass.id);
+
+    // Хязгааргүйгээр — бүх хүүхдийн тоог шалгахад.
+    const all = await strugglingStudents(asTeacher, klass.id, { limit: 100 });
+    const forS0 = all.find((x) => x.studentUserId === students[0].id);
+    check("бага хийсэн хүүхэд гарав", forS0 !== undefined, forS0?.done + "/" + forS0?.total);
+    check("тоо зөв", forS0?.done === 1 && forS0?.total === 4);
+    check(
+      "огт хийгээгүй нь 1 хийснээсээ ӨМНӨ",
+      all.findIndex((x) => x.done === 0) < all.findIndex((x) => x.studentUserId === students[0].id),
+    );
+    check(
+      "бүгдийг хийсэн хүүхэд ГАРАХГҮЙ",
+      !all.some((x) => x.studentUserId === students[1].id),
+    );
+    check("жагсаалт 5-аар хязгаарлагдав", list.length <= 5, list.length + " хүн");
+    check(
+      "хамгийн бага хийсэн нь эхэнд",
+      list.length < 2 || list[0].done / list[0].total <= list[1].done / list[1].total,
+    );
+
+    await refuses("өөр ангийн багш харах", () => strugglingStudents(asTeacher2, klass.id));
+    await refuses("эцэг эх харах", () => strugglingStudents(parent, klass.id));
+    await refuses("сурагч харах", () => strugglingStudents(s0, klass.id));
+    await refuses("эрхлэгч харах", () => strugglingStudents(asManager, klass.id));
+
+    for (const id of ids) await deleteHomework(asTeacher, id);
   }
 
   console.log();

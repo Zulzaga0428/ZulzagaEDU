@@ -15,8 +15,9 @@ import {
 import { getViewer } from "@/server/auth/access";
 import { AppShell } from "@/components/app-shell";
 import { Bar, Card, Empty, FeatureCard, Row, SectionLabel, StatTile } from "@/components/ui";
-import { listClassHomework, myClasses } from "@/server/homework/service";
+import { listClassHomework, myClasses, strugglingStudents } from "@/server/homework/service";
 import { myIncentive } from "@/server/incentive/service";
+import { startThreadAction } from "@/app/yaria/actions";
 import { formatDueUb, isOverdue } from "@/server/homework/time";
 
 export const dynamic = "force-dynamic";
@@ -28,7 +29,11 @@ export default async function TeacherHome() {
 
   const [classList, incentive] = await Promise.all([myClasses(viewer), myIncentive(viewer)]);
   const perClass = await Promise.all(
-    classList.map(async (c) => ({ klass: c, items: await listClassHomework(viewer, c.id) })),
+    classList.map(async (c) => ({
+      klass: c,
+      items: await listClassHomework(viewer, c.id),
+      struggling: await strugglingStudents(viewer, c.id),
+    })),
   );
 
   const all = perClass.flatMap((p) => p.items);
@@ -94,11 +99,49 @@ export default async function TeacherHome() {
           хуваарилсны дараа даалгавар өгөх, хуваарь оруулах боломжтой болно.
         </Empty>
       ) : (
-        perClass.map(({ klass, items }) => (
+        perClass.map(({ klass, items, struggling }) => (
           <section key={klass.id}>
             <SectionLabel>
               {klass.name} анги · {klass.grade}-р анги
             </SectionLabel>
+
+            {/*
+              Хэв шинж — нэг өдрийн зураг биш. «Өчигдөр хийгээгүй» нь мартсан
+              байж болно; «сүүлийн 5-аас 1» бол өөр асуудал. Багш тоолох
+              ажлыг хийхгүй, шууд ярих зам руу хөтөлнө (`DECISIONS.md` §16).
+            */}
+            {struggling.length > 0 && (
+              <Card className="mb-2.5 border-warn-line bg-warn-bg">
+                <p className="font-extrabold text-ink">Дэмжлэг хэрэгтэй байж магадгүй</p>
+                <p className="mt-0.5 text-xs text-ink-soft">
+                  Сүүлийн даалгавруудаас цөөхнийг нь хийсэн хүүхдүүд.
+                </p>
+                <ul className="mt-3 space-y-2">
+                  {struggling.map((st) => (
+                    <li
+                      key={st.studentUserId}
+                      className="flex items-center gap-3 rounded-xl bg-surface px-3 py-2"
+                    >
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate font-bold text-ink">{st.name}</span>
+                        <span className="block text-xs text-ink-faint">
+                          {st.total} даалгавраас {st.done} нь хийгдсэн
+                        </span>
+                      </span>
+                      <form action={startThreadAction}>
+                        <input type="hidden" name="studentUserId" value={st.studentUserId} />
+                        <button
+                          type="submit"
+                          className="shrink-0 rounded-lg border border-line px-3 py-1.5 text-xs font-bold text-brand hover:border-brand"
+                        >
+                          Ярих
+                        </button>
+                      </form>
+                    </li>
+                  ))}
+                </ul>
+              </Card>
+            )}
 
             {items.length === 0 ? (
               <Empty icon={BookOpen}>Одоогоор даалгавар өгөөгүй байна.</Empty>
