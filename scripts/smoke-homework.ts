@@ -15,6 +15,7 @@ import {
   homework as homeworkTable,
   notifications,
   pointsLedger,
+  studentAvatars,
   teacherIncentives,
   threads,
   guardians,
@@ -97,6 +98,12 @@ import {
   myHistory,
   myPoints,
 } from "../src/server/points/service";
+import {
+  avatarCatalog,
+  buyAvatar,
+  selectAvatar,
+  selectedAvatar,
+} from "../src/server/points/avatars";
 import type { StudentHomeworkRow } from "../src/server/homework/service";
 import { myProfile, changeOwnPin } from "../src/server/profile/service";
 import { attachToHomework, homeworkFiles } from "../src/server/files/storage";
@@ -1439,6 +1446,65 @@ async function main() {
     await deleteHomework(asTeacher, hwP2);
     await deleteHomework(asTeacher, hwOld);
     await deleteHomework(asTeacher, hwP1);
+  }
+
+  console.log();
+  console.log("47. Аватар — оноогоор нээх");
+  {
+    process.env.POINTS_ENABLED = "1";
+    await db.delete(studentAvatars).where(eq(studentAvatars.userId, students[0].id));
+    await db.delete(pointsLedger).where(eq(pointsLedger.userId, students[0].id));
+
+    const cat0 = await avatarCatalog(s0);
+    check("каталог 8 аватартай", cat0.length === 8, cat0.length + " аватар");
+    check("үнэгүй нь эзэмшсэн", cat0[0].owned === true && cat0[0].cost === 0);
+    check("үнэгүй нь анхнаасаа сонгогдсон", cat0[0].selected === true);
+    check("үнэтэй нь хаалттай", cat0[1].owned === false);
+    check("оноогүй үед авах боломжгүй", cat0[1].affordable === false);
+
+    // Оноо цуглуулъя — 4 даалгавар × 10.
+    const hwIds: string[] = [];
+    for (let i = 0; i < 4; i++) {
+      const id = await createHomework(asTeacher, {
+        classId: klass.id, subjectId: null, title: `Аватар ${i}`,
+        description: null, dueAt: endOfDayUb(addDaysUb(todayUb(), 1)),
+      });
+      hwIds.push(id);
+      await awardForHomework(s0, id, "HOMEWORK_DONE");
+    }
+    check("40 оноо цуглав", (await myPoints(s0)) === 40);
+
+    await refuses("оноо хүрэхгүй үед авах", () => buyAvatar(s0, "honi"));
+
+    await buyAvatar(s0, "nohoi");
+    check("аватар нээгдэв", (await myPoints(s0)) === 10, (await myPoints(s0)) + " оноо үлдэв");
+    const cat1 = await avatarCatalog(s0);
+    check("эзэмшсэн болов", cat1.find((a) => a.id === "nohoi")?.owned === true);
+
+    await refuses("нэг аватарыг хоёр удаа авах", () => buyAvatar(s0, "nohoi"));
+
+    // ⚠️ Үнэгүй аватарыг «худалдаж авах» гэж оноо хасуулах гарц байхгүй.
+    await refuses("үнэгүй аватарыг худалдах", () => buyAvatar(s0, "muur"));
+    await refuses("байхгүй аватар авах", () => buyAvatar(s0, "luu"));
+
+    // Сонгох — зөвхөн нээсэн зүйлээ.
+    await selectAvatar(s0, "nohoi");
+    check("сонгогдов", (await selectedAvatar(students[0].id)) === "nohoi");
+    await refuses("нээгээгүй аватар сонгох", () => selectAvatar(s0, "burged"));
+    check("үнэгүй рүү буцаж сонгож болно", await selectAvatar(s0, "muur").then(() => true));
+    check("нэг л идэвхтэй", (await selectedAvatar(students[0].id)) === "muur");
+
+    // Багш, эцэг эх аватар авахгүй.
+    await refuses("багш аватар авах", () => buyAvatar(asTeacher, "nohoi"));
+    await refuses("эцэг эх каталог харах", () => avatarCatalog(parent));
+
+    // Туг унтраалттай бол худалдаж авахгүй.
+    process.env.POINTS_ENABLED = "0";
+    await refuses("туг унтраалттай үед авах", () => buyAvatar(s0, "honi"));
+
+    await db.delete(studentAvatars).where(eq(studentAvatars.userId, students[0].id));
+    await db.delete(pointsLedger).where(eq(pointsLedger.userId, students[0].id));
+    for (const id of hwIds) await deleteHomework(asTeacher, id);
   }
 
   console.log();

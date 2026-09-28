@@ -1,6 +1,7 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { and, eq } from "drizzle-orm";
-import { BookOpen, Calculator, Megaphone, NotebookPen, PartyPopper, Sparkles, Star } from "lucide-react";
+import { BookOpen, Calculator, Megaphone, NotebookPen, PartyPopper, Sparkles } from "lucide-react";
 import { db } from "@/server/db";
 import { classMembers, classes, users } from "@/server/db/schema";
 import { getViewer } from "@/server/auth/access";
@@ -17,6 +18,8 @@ import { markDoneAction, undoDoneAction } from "./actions";
 import { PhotoUpload } from "@/components/photo-upload";
 import { myAttachments } from "@/server/files/storage";
 import { myPoints, pointsEnabled } from "@/server/points/service";
+import { selectedAvatar } from "@/server/points/avatars";
+import { Avatar } from "@/components/avatars";
 
 export const dynamic = "force-dynamic";
 
@@ -141,6 +144,7 @@ export default async function StudentHome() {
   const nextDay = nextSchoolDay(await myWeek(viewer));
   // Туг унтраалттай бол `null` — карт огт гарахгүй.
   const points = pointsEnabled() ? await myPoints(viewer) : null;
+  const myAvatar = points === null ? null : await selectedAvatar(viewer.userId);
   const notices = await myAnnouncements(viewer, 3);
 
   const g = groupByDue(items);
@@ -191,17 +195,17 @@ export default async function StudentHome() {
         долоо хоногуудад огт гарахгүй — суурь тоог цэвэр авна.
       */}
       {points !== null && (
-        <Card className="bg-role-student">
-          <div className="flex items-center gap-3">
-            <IconBox icon={Star} tint="ягаан" size="том" />
-            <div className="min-w-0 flex-1">
-              <p className="text-2xl font-extrabold text-navy">{points} оноо</p>
-              <p className="text-xs text-ink-soft">
-                Даалгавраа хийх бүрд цуглана. Зураг илгээвэл илүү.
-              </p>
+        <Link href="/suragch/shagnal" className="block">
+          <Card className="bg-role-student transition-colors hover:border-brand">
+            <div className="flex items-center gap-3">
+              <Avatar id={myAvatar} size={52} />
+              <div className="min-w-0 flex-1">
+                <p className="text-2xl font-extrabold text-navy">{points} оноо</p>
+                <p className="text-xs text-ink-soft">Шагнал сонгох →</p>
+              </div>
             </div>
-          </div>
-        </Card>
+          </Card>
+        </Link>
       )}
 
       {g.totalCount > 0 && (

@@ -9,5 +9,6 @@ export * from "./invitations";
 export * from "./comms";
 export * from "./threads";
 export * from "./points";
+export * from "./avatars";
 export * from "./incentives";
 export * from "./audit";

@@ -57,6 +57,13 @@
       "when": 1790609760252,
       "tag": "0007_points_ledger",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1790613643117,
+      "tag": "0008_student_avatars",
+      "breakpoints": true
     }
   ]
 }
