@@ -20,7 +20,7 @@ import { groupByDue, studentHeadline } from "@/server/homework/grouping";
 import { formatDueUb } from "@/server/homework/time";
 import { lessonName, myWeek, nextSchoolDay } from "@/server/schedule/service";
 import { myAnnouncements } from "@/server/announce/service";
-import { markDoneAction } from "./actions";
+import { markDoneAction, undoDoneAction } from "./actions";
 import { PhotoUpload } from "@/components/photo-upload";
 import { myAttachments } from "@/server/files/storage";
 
@@ -156,6 +156,21 @@ export default async function StudentHome() {
   );
   const now = g.overdue.length + g.today.length;
   const finished = items.filter((h) => h.status !== "ASSIGNED");
+
+  /*
+    Буцаах товч зөвхөн зураггүй ажилд гарна. Зураг нь хийсний баталгаа тул
+    түүнийг үлдээгээд «хийгээгүй» гэж тэмдэглэх нь зөрчилтэй. Сервер ч
+    татгалздаг — энд шалгаж байгаа нь хүүхдийг алдаанд оруулахгүйн тулд.
+  */
+  const undoable = new Set(
+    (
+      await Promise.all(
+        finished
+          .filter((h) => h.status === "DONE")
+          .map(async (h) => ((await myAttachments(viewer, h.id)).length === 0 ? h.id : null)),
+      )
+    ).filter((id): id is string => id !== null),
+  );
   const firstName = (me?.name ?? "").trim().split(/\s+/).pop() ?? "";
   const pct = g.totalCount === 0 ? 0 : Math.round((g.doneCount / g.totalCount) * 100);
 
@@ -264,6 +279,22 @@ export default async function StudentHome() {
                     {h.status === "CHECKED" ? "Багш шалгасан ✓" : "✓"}
                   </span>
                 </div>
+
+                {/*
+                  Андуурч дарсан бол буцаах зам. Багш шалгасны дараа, эсвэл
+                  зураг илгээсэн бол гарахгүй — тэр хоёр нь баталгаа.
+                */}
+                {undoable.has(h.id) && (
+                  <form action={undoDoneAction} className="mt-2">
+                    <input type="hidden" name="homeworkId" value={h.id} />
+                    <button
+                      type="submit"
+                      className="text-xs font-bold text-ink-faint underline hover:text-accent"
+                    >
+                      Андуурч дарсан — буцаах
+                    </button>
+                  </form>
+                )}
                 {h.teacherNote && (
                   <p className="mt-2 rounded-2xl bg-surface-soft px-4 py-3 text-sm text-ink">
                     Багш: {h.teacherNote}

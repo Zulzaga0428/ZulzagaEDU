@@ -300,6 +300,52 @@ export async function markDone(viewer: Viewer, homeworkId: string): Promise<void
 }
 
 /**
+ * «Хийсэн» тэмдгээ буцаана.
+ *
+ * 1–5-р ангийн хүүхэд товч андуурч дардаг. Буцаах арга байхгүй бол нэг
+ * алдаа гурван хүнд буруу мэдээлэл өгнө: багш хийсэн гэж харна, оройн
+ * сануулга зогсоно, эцэг эхэд «бүх зүйл хэвийн» гэж гарна.
+ *
+ * Хоёр тохиолдолд БУЦААХГҮЙ:
+ *
+ *  1. **Багш аль хэдийн шалгасан** (`CHECKED`) — багшийн хийсэн ажлыг
+ *     хүүхэд буцаах нь зөв биш. Багш тэмдэглэл ч бичсэн байж болно.
+ *  2. **Дэвтрийн зураг хавсаргасан** — зураг нь хийсний баталгаа. Зургаа
+ *     үлдээгээд «хийгээгүй» гэж тэмдэглэх нь зөрчилтэй.
+ */
+export async function undoDone(viewer: Viewer, homeworkId: string): Promise<void> {
+  if (viewer.role !== "STUDENT") throw new AccessError("ЭРХГҮЙ");
+
+  const [sub] = await db
+    .select({ id: homeworkSubmissions.id, status: homeworkSubmissions.status })
+    .from(homeworkSubmissions)
+    .innerJoin(homework, eq(homework.id, homeworkSubmissions.homeworkId))
+    .where(
+      and(
+        eq(homeworkSubmissions.homeworkId, homeworkId),
+        eq(homeworkSubmissions.studentUserId, viewer.userId),
+        eq(homework.schoolId, viewer.schoolId),
+      ),
+    )
+    .limit(1);
+
+  if (!sub) throw new AccessError("ЭРХГҮЙ");
+  if (sub.status !== "DONE") throw new Error("Үүнийг буцаах боломжгүй.");
+
+  const [photo] = await db
+    .select({ fileId: submissionAttachments.fileId })
+    .from(submissionAttachments)
+    .where(eq(submissionAttachments.submissionId, sub.id))
+    .limit(1);
+  if (photo) throw new Error("Зураг илгээсэн тул буцаах боломжгүй.");
+
+  await db
+    .update(homeworkSubmissions)
+    .set({ status: "ASSIGNED", markedDoneAt: null })
+    .where(eq(homeworkSubmissions.id, sub.id));
+}
+
+/**
  * Багш сурагчийн ажлыг шалгаж тэмдэглэнэ.
  *
  * Гогцооны сүүлчийн холбоос: сурагч «хийлээ» гэсний дараа багш хардаг

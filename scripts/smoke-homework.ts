@@ -34,6 +34,7 @@ import {
   markDone,
   myHomework,
   strugglingStudents,
+  undoDone,
   updateHomework,
 } from "../src/server/homework/service";
 import { endOfDayUb, todayUb, addDaysUb } from "../src/server/homework/time";
@@ -1262,6 +1263,61 @@ async function main() {
     await refuses("эрхлэгч харах", () => strugglingStudents(asManager, klass.id));
 
     for (const id of ids) await deleteHomework(asTeacher, id);
+  }
+
+  console.log();
+  console.log("44. Сурагч андуурч дарсныг буцаах");
+  {
+    const hwU = await createHomework(asTeacher, {
+      classId: klass.id,
+      subjectId: null,
+      title: "Буцаах шалгалт",
+      description: null,
+      dueAt: endOfDayUb(addDaysUb(todayUb(), 1)),
+    });
+
+    await markDone(s0, hwU);
+    check("хийсэн гэж тэмдэглэв", (await myHomework(s0)).find((h) => h.id === hwU)?.status === "DONE");
+
+    await undoDone(s0, hwU);
+    const back = (await myHomework(s0)).find((h) => h.id === hwU);
+    check("буцаагдав", back?.status === "ASSIGNED", back?.status);
+
+    // Багшийн тоолол ч буцах ёстой — эс бөгөөс тоо худал үлдэнэ.
+    const roster = await homeworkRoster(asTeacher, hwU);
+    const row = roster.rows.find((r) => r.studentUserId === students[0].id);
+    check("багшийн жагсаалтад хийгээгүй болов", row?.status === "ASSIGNED");
+
+    // Хийгээгүй зүйлийг буцаах боломжгүй.
+    await refuses("хийгээгүйг буцаах", () => undoDone(s0, hwU));
+
+    // Багш шалгасны дараа буцаахгүй.
+    await markDone(s0, hwU);
+    const r2 = await homeworkRoster(asTeacher, hwU);
+    const subId = r2.rows.find((r) => r.studentUserId === students[0].id)!.submissionId;
+    await checkSubmission(asTeacher, hwU, subId, "Сайн.");
+    await refuses("багш шалгасныг буцаах", () => undoDone(s0, hwU));
+
+    // Өөр хүний ажлыг буцаахгүй.
+    await markDone(s1, hwU);
+    await refuses("багш өөрөө буцаах", () => undoDone(asTeacher, hwU));
+    await refuses("эцэг эх буцаах", () => undoDone(parent, hwU));
+
+    // Зураг илгээсэн бол буцаахгүй — зураг нь баталгаа.
+    const hwP = await createHomework(asTeacher, {
+      classId: klass.id,
+      subjectId: null,
+      title: "Зурагтай буцаах шалгалт",
+      description: null,
+      dueAt: endOfDayUb(addDaysUb(todayUb(), 1)),
+    });
+    const shotU = await saveImage(s0, new Uint8Array(png), "image/png");
+    await attachToSubmission(s0, hwP, shotU.id);
+    await refuses("зураг илгээснийг буцаах", () => undoDone(s0, hwP));
+
+    await deleteFile(shotU.id);
+    await deleteHomework(asTeacher, hwP);
+    await deleteHomework(asTeacher, hwU);
   }
 
   console.log();
