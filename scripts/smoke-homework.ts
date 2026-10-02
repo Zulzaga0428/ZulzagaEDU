@@ -21,6 +21,7 @@ import {
   guardians,
   memberships,
   schools,
+  subjects,
   users,
 } from "../src/server/db/schema";
 import type { Viewer } from "../src/server/auth/access";
@@ -74,6 +75,8 @@ import {
 } from "../src/server/school/manage";
 import { signIn, issueStudentCredentials } from "../src/server/auth/credentials";
 import { devAccountExists, listDevAccounts } from "../src/server/auth/dev-login";
+import { adminSecret, secretMatches } from "../src/server/admin/session";
+import { createSchoolWithManager, listSchools } from "../src/server/admin/service";
 import {
   acceptParentInvite,
   createParentInvite,
@@ -1604,6 +1607,80 @@ async function main() {
       (await devAccountExists(teacher.id, school.id, "TEACHER")) === false,
     );
     process.env.DEV_LOGIN_ENABLED = "1";
+  }
+
+  console.log();
+  console.log("50. Админ — сургууль үүсгэх");
+  {
+    // Кодын шалгалт — урт, утга хоёулаа.
+    process.env.ADMIN_SECRET = "turshilt-admin-kod-123";
+    check("зөв код таарав", secretMatches("turshilt-admin-kod-123") === true);
+    check("буруу код татгалзав", secretMatches("turshilt-admin-kod-124") === false);
+    check("богино код татгалзав", secretMatches("turshilt") === false);
+    check("урт код татгалзав", secretMatches("turshilt-admin-kod-1234") === false);
+
+    // Код тохируулаагүй бол админы зам БҮХЭЛДЭЭ хаалттай.
+    delete process.env.ADMIN_SECRET;
+    check("код тохируулаагүй бол хаалттай", adminSecret() === null);
+    check("код байхгүй үед юу ч таарахгүй", secretMatches("") === false);
+    process.env.ADMIN_SECRET = "turshilt-admin-kod-123";
+
+    const uniq = String(Date.now()).slice(-7);
+    const slug = "admin-test-" + uniq;
+
+    // Буруу утгууд.
+    const bad1 = await createSchoolWithManager("Болд", {
+      name: "Сургууль", slug, managerName: "Эрхлэгч", phone: "123",
+    });
+    check("утас 8 оронтой биш бол татгалзав", bad1.ok === false);
+    const bad2 = await createSchoolWithManager("Болд", {
+      name: "Сургууль", slug: "ZU", managerName: "Эрхлэгч", phone: "99" + uniq.slice(-6),
+    });
+    check("богино нэр буруу бол татгалзав", bad2.ok === false);
+    const bad3 = await createSchoolWithManager("Болд", {
+      name: "Сургууль", slug: "zulzaga", managerName: "Эрхлэгч", phone: "99" + uniq.slice(-6),
+    });
+    check("«zulzaga» slug хамгаалагдсан", bad3.ok === false);
+
+    // Зөв үүсгэлт.
+    const made = await createSchoolWithManager("Болд", {
+      name: "Админ тестийн сургууль",
+      slug,
+      managerName: "Шалгалтын Эрхлэгч",
+      phone: "99" + uniq.slice(-6),
+    });
+    check("сургууль үүсэв", made.ok === true);
+    if (!made.ok) throw new Error("сургууль үүссэнгүй");
+    check("PIN буцаав", /^\d{4}$/.test(made.pin ?? ""), made.pin ?? "алга");
+
+    // Эрхлэгч нь жинхэнэ нэвтэрч чадах эсэх — PIN нь ажиллах ёстой.
+    const signed = await signIn("99" + uniq.slice(-6), made.pin!);
+    check("эрхлэгч нэвтэрч чадав", signed.ok === true);
+    check("дүр нь эрхлэгч", signed.ok && signed.role === "ACADEMIC_MANAGER");
+
+    // Үндсэн хичээлүүд орсон эсэх — эс бөгөөс багш даалгавар өгөхөд хоосон.
+    const subs = await db
+      .select({ id: subjects.id })
+      .from(subjects)
+      .where(eq(subjects.schoolId, made.schoolId));
+    check("үндсэн хичээлүүд орлоо", subs.length > 0, subs.length + " хичээл");
+
+    // Давхар slug.
+    const dup = await createSchoolWithManager("Болд", {
+      name: "Өөр сургууль", slug, managerName: "Өөр хүн", phone: "98" + uniq.slice(-6),
+    });
+    check("давхар богино нэр татгалзав", dup.ok === false);
+
+    // Жагсаалтад орсон эсэх.
+    const listed = await listSchools();
+    const row = listed.find((x) => x.slug === slug);
+    check("жагсаалтад орлоо", row !== undefined);
+    check("шинэ сургуульд даалгавар 0", row?.homework === 0);
+    const seedRow = listed.find((x) => x.slug === "zulzaga");
+    check("seed сургуулийн тоо гарч байна", (seedRow?.students ?? 0) > 0, seedRow?.students + " сурагч");
+
+    await db.delete(schools).where(eq(schools.id, made.schoolId));
+    await db.delete(users).where(eq(users.phone, "99" + uniq.slice(-6)));
   }
 
   console.log();
