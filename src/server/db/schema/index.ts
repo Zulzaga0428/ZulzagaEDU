@@ -10,5 +10,6 @@ export * from "./comms";
 export * from "./threads";
 export * from "./points";
 export * from "./avatars";
+export * from "./leads";
 export * from "./incentives";
 export * from "./audit";

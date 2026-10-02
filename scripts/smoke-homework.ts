@@ -13,6 +13,7 @@ import {
   classes,
   credentials as credentialsTable,
   homework as homeworkTable,
+  leads,
   notifications,
   pointsLedger,
   studentAvatars,
@@ -77,6 +78,12 @@ import { signIn, issueStudentCredentials } from "../src/server/auth/credentials"
 import { devAccountExists, listDevAccounts } from "../src/server/auth/dev-login";
 import { adminSecret, secretMatches } from "../src/server/admin/session";
 import { createSchoolWithManager, listSchools } from "../src/server/admin/service";
+import {
+  listLeads,
+  markLeadHandled,
+  submitLead,
+  unhandledLeadCount,
+} from "../src/server/leads/service";
 import {
   acceptParentInvite,
   createParentInvite,
@@ -1681,6 +1688,60 @@ async function main() {
 
     await db.delete(schools).where(eq(schools.id, made.schoolId));
     await db.delete(users).where(eq(users.phone, "99" + uniq.slice(-6)));
+  }
+
+  console.log();
+  console.log("51. Сургуулийн хүсэлт (холбоо барих)");
+  {
+    const uniq = String(Date.now()).slice(-6);
+    const phone = "97" + uniq;
+    await db.delete(leads).where(eq(leads.phone, phone));
+
+    // Буруу утгууд — нэвтрэлтгүй зам тул сервер талд ЗААВАЛ шалгана.
+    check("хоосон сургуулийн нэр татгалзав",
+      (await submitLead({ schoolName: " ", contactName: "Болд", phone, note: "" })).ok === false);
+    check("хоосон нэр татгалзав",
+      (await submitLead({ schoolName: "Сургууль", contactName: "", phone, note: "" })).ok === false);
+    check("богино утас татгалзав",
+      (await submitLead({ schoolName: "Сургууль", contactName: "Болд", phone: "123", note: "" })).ok === false);
+
+    const ok = await submitLead({
+      schoolName: "Хүсэлтийн сургууль",
+      contactName: "Сүхбаатарын Оюунчимэг",
+      phone,
+      note: "3 ангид туршмаар байна",
+    });
+    check("хүсэлт хүлээн авав", ok.ok === true);
+
+    // Нэг дугаараас өдөрт нэг удаа — давхар дарснаас хамгаална.
+    const again = await submitLead({
+      schoolName: "Дахин", contactName: "Болд", phone, note: "",
+    });
+    check("давхар хүсэлт татгалзав", again.ok === false);
+
+    const list = await listLeads();
+    const mine = list.find((l) => l.phone === phone);
+    check("жагсаалтад орлоо", mine !== undefined, mine?.schoolName);
+    check("хариу өгөөгүй гэж эхэлнэ", mine?.handledAt === null);
+    check("тэмдэглэл хадгалагдав", mine?.note?.includes("3 ангид") === true);
+
+    const before = await unhandledLeadCount();
+    await markLeadHandled(mine!.id);
+    const after = await unhandledLeadCount();
+    check("хариу өглөө гэж тэмдэглэв", after === before - 1, `${before} → ${after}`);
+
+    // Хэт урт утгыг таслана — 1000 тэмдэгтээс дээш тэмдэглэл хадгалахгүй.
+    const phone2 = "96" + uniq;
+    await db.delete(leads).where(eq(leads.phone, phone2));
+    await submitLead({
+      schoolName: "Урт".repeat(200), contactName: "Болд", phone: phone2, note: "a".repeat(5000),
+    });
+    const [long] = (await listLeads()).filter((l) => l.phone === phone2);
+    check("урт нэр таслагдав", (long?.schoolName.length ?? 0) <= 200);
+    check("урт тэмдэглэл таслагдав", (long?.note?.length ?? 0) <= 1000);
+
+    await db.delete(leads).where(eq(leads.phone, phone));
+    await db.delete(leads).where(eq(leads.phone, phone2));
   }
 
   console.log();

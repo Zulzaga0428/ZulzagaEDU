@@ -2,7 +2,8 @@ import { BookOpen, School, ShieldCheck } from "lucide-react";
 import { readAdminSession, adminSecret } from "@/server/admin/session";
 import { listSchools } from "@/server/admin/service";
 import { CreateSchool } from "@/components/admin-create-school";
-import { adminLoginAction, adminLogoutAction } from "./actions";
+import { adminLoginAction, adminLogoutAction, markLeadHandledAction } from "./actions";
+import { listLeads, unhandledLeadCount } from "@/server/leads/service";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Админ — Zulzaga EDU", robots: { index: false, follow: false } };
@@ -95,7 +96,11 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
     );
   }
 
-  const list = await listSchools();
+  const [list, leads, unhandled] = await Promise.all([
+    listSchools(),
+    listLeads(20),
+    unhandledLeadCount(),
+  ]);
   const totals = list.reduce(
     (a, s) => ({
       teachers: a.teachers + s.teachers,
@@ -152,6 +157,47 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
       </a>
 
       <CreateSchool />
+
+      {leads.length > 0 && (
+        <section>
+          <h2 className="mb-2 text-xs font-bold uppercase tracking-wider text-ink-faint">
+            Сургуулиудаас ирсэн хүсэлт · {unhandled} хариу өгөөгүй
+          </h2>
+          <div className="space-y-2">
+            {leads.map((l) => (
+              <div
+                key={l.id}
+                className={`rounded-2xl border px-4 py-3 ${
+                  l.handledAt ? "border-line bg-surface" : "border-warn-line bg-warn-bg"
+                }`}
+              >
+                <div className="flex items-baseline justify-between gap-3">
+                  <p className="min-w-0 truncate font-bold text-ink">{l.schoolName}</p>
+                  <a
+                    href={`tel:${l.phone}`}
+                    className="shrink-0 font-mono text-sm font-bold text-brand"
+                  >
+                    {l.phone}
+                  </a>
+                </div>
+                <p className="mt-0.5 text-xs text-ink-faint">{l.contactName}</p>
+                {l.note && <p className="mt-2 text-sm text-ink-soft">{l.note}</p>}
+                {!l.handledAt && (
+                  <form action={markLeadHandledAction} className="mt-2">
+                    <input type="hidden" name="leadId" value={l.id} />
+                    <button
+                      type="submit"
+                      className="rounded-lg border border-line bg-surface px-3 py-1.5 text-xs font-bold text-brand hover:border-brand"
+                    >
+                      Хариу өглөө
+                    </button>
+                  </form>
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       <section>
         <h2 className="mb-2 text-xs font-bold uppercase tracking-wider text-ink-faint">

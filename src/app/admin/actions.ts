@@ -9,6 +9,7 @@ import {
   secretMatches,
 } from "@/server/admin/session";
 import { createSchoolWithManager } from "@/server/admin/service";
+import { markLeadHandled } from "@/server/leads/service";
 
 export async function adminLoginAction(formData: FormData): Promise<void> {
   const who = String(formData.get("who") ?? "").trim();
@@ -65,4 +66,16 @@ export async function createSchoolAction(
     phone: result.phone,
     pin: result.pin,
   };
+}
+
+/** Хүсэлтэд хариу өгсөн гэж тэмдэглэнэ. */
+export async function markLeadHandledAction(formData: FormData): Promise<void> {
+  const admin = await readAdminSession();
+  if (!admin) redirect("/admin");
+
+  const id = formData.get("leadId");
+  if (typeof id !== "string") throw new Error("Дутуу утга.");
+
+  await markLeadHandled(id);
+  revalidatePath("/admin");
 }
