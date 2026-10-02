@@ -1,4 +1,4 @@
-import { School, ShieldCheck } from "lucide-react";
+import { BookOpen, School, ShieldCheck } from "lucide-react";
 import { readAdminSession, adminSecret } from "@/server/admin/session";
 import { listSchools } from "@/server/admin/service";
 import { CreateSchool } from "@/components/admin-create-school";
@@ -135,6 +135,21 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
           </div>
         ))}
       </div>
+
+      {/* Ажилтан өрөөнд ороод уншина — админ дэлгэцээс нэг товшилтод. */}
+      <a
+        href="/admin/ajiltan"
+        className="flex items-center gap-3 rounded-2xl border-2 border-brand/50 bg-surface px-4 py-3.5 transition-colors hover:bg-surface-soft"
+      >
+        <BookOpen className="h-5 w-5 shrink-0 text-brand" strokeWidth={2.4} />
+        <span className="min-w-0 flex-1">
+          <span className="block font-extrabold text-brand">Ажилтны гарын авлага</span>
+          <span className="block text-xs text-ink-faint">
+            Захиралд хэлэх яриа, тохируулгын 5 алхам
+          </span>
+        </span>
+        <span className="shrink-0 text-ink-faint">›</span>
+      </a>
 
       <CreateSchool />
 
