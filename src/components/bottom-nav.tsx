@@ -4,12 +4,14 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   CalendarDays,
+  Gift,
   Home,
   Languages,
   Megaphone,
   MessageSquare,
   NotebookPen,
   Plus,
+  Star,
   User,
   Users,
   type LucideIcon,
@@ -46,24 +48,37 @@ const TEACHER: { left: Item[]; center: Item; right: Item[] } = {
   ],
 };
 
-function studentNav(lang: boolean): { left: Item[]; center: Item; right: Item[] } {
-  const left: Item[] = [
-    { href: "/suragch", label: "Нүүр", icon: Home },
-    { href: "/suragch/hovaari", label: "Хуваарь", icon: CalendarDays },
-  ];
-  const right: Item[] = [
-    { href: "/suragch/daalgavar", label: "Даалгавар", icon: NotebookPen },
-    { href: "/profil", label: "Профайл", icon: User },
-  ];
+/**
+ * Сурагчийн nav.
+ *
+ * **Оноо асаалттай үед** (Zulzaga, 2026-10-06): Нүүр · Миний оноо ·
+ * **Миний хэл** · Урамшуулал · Профайл. Хуваарь, даалгавар хоёр nav-аас
+ * гарсан — нүүр хуудас хоёуланг нь аль хэдийн харуулдаг, толгойн тоонд ч
+ * байгаа. Тэднийг нүүрнээс холбоно.
+ *
+ * **Унтраалттай үед** хуучнаараа: Нүүр · Хуваарь · Даалгавар · Профайл.
+ * Пилотын эхний долоо хоногуудад баг ийм хувилбар харна — nav хоосон
+ * үлдэж болохгүй.
+ */
+function studentNav(lang: boolean, points: boolean): { left: Item[]; center: Item; right: Item[] } {
+  const home: Item = { href: "/suragch", label: "Нүүр", icon: Home };
+  const profile: Item = { href: "/profil", label: "Профайл", icon: User };
 
-  // Туг унтраалттай бол даалгавар нь дунд — сурагчийн өдөр бүрийн гол зүйл.
+  if (!points) {
+    return {
+      left: [home, { href: "/suragch/hovaari", label: "Хуваарь", icon: CalendarDays }],
+      center: { href: "/suragch/daalgavar", label: "Даалгавар", icon: NotebookPen },
+      right: [profile],
+    };
+  }
+
+  const left = [home, { href: "/suragch/onoo", label: "Миний оноо", icon: Star }];
+  const rewards: Item = { href: "/suragch/shagnal", label: "Урамшуулал", icon: Gift };
+
+  // Хэл унтраалттай бол урамшуулал нь дунд — оноо цуглуулах шалтгаан тэнд.
   return lang
-    ? { left, center: { href: "/hel", label: "Хэл сурах", icon: Languages }, right }
-    : {
-        left,
-        center: { href: "/suragch/daalgavar", label: "Даалгавар", icon: NotebookPen },
-        right: [{ href: "/profil", label: "Профайл", icon: User }],
-      };
+    ? { left, center: { href: "/hel", label: "Миний хэл", icon: Languages }, right: [rewards, profile] }
+    : { left, center: rewards, right: [profile] };
 }
 
 function isActive(pathname: string, href: string, home: string) {
@@ -88,12 +103,20 @@ function Cell({ item, active, home }: { item: Item; active: boolean; home: strin
   );
 }
 
-export function BottomNav({ role, lang = false }: { role: MembershipRole; lang?: boolean }) {
+export function BottomNav({
+  role,
+  lang = false,
+  points = false,
+}: {
+  role: MembershipRole;
+  lang?: boolean;
+  points?: boolean;
+}) {
   const pathname = usePathname();
 
   if (role !== "TEACHER" && role !== "STUDENT") return null;
 
-  const nav = role === "TEACHER" ? TEACHER : studentNav(lang);
+  const nav = role === "TEACHER" ? TEACHER : studentNav(lang, points);
   const home = role === "TEACHER" ? "/bagsh" : "/suragch";
   const Center = nav.center.icon;
 

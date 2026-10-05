@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { and, eq } from "drizzle-orm";
-import { BookOpen, Megaphone, PartyPopper, Sparkles } from "lucide-react";
+import { BookOpen, CalendarDays, Megaphone, NotebookPen, PartyPopper, Sparkles } from "lucide-react";
 import { db } from "@/server/db";
 import { classMembers, classes, users } from "@/server/db/schema";
 import { getViewer } from "@/server/auth/access";
@@ -11,7 +11,7 @@ import { IconBox } from "@/components/ui";
 import { myHomework } from "@/server/homework/service";
 import { groupByDue, studentHeadline } from "@/server/homework/grouping";
 import { formatDueUb } from "@/server/homework/time";
-import { lessonName, myWeek, nextSchoolDay } from "@/server/schedule/service";
+import { lessonName, lessonsToday, myWeek, nextSchoolDay } from "@/server/schedule/service";
 import { myAnnouncements } from "@/server/announce/service";
 import { undoDoneAction } from "./actions";
 import { StudentTask } from "@/components/student-task";
@@ -54,10 +54,13 @@ export default async function StudentHome() {
     myHomework(viewer),
   ]);
 
-  const nextDay = nextSchoolDay(await myWeek(viewer));
+  const week = await myWeek(viewer);
+  const nextDay = nextSchoolDay(week);
+  const todayLessons = lessonsToday(week);
   // Туг унтраалттай бол `null` — карт огт гарахгүй.
   const points = pointsEnabled() ? await myPoints(viewer) : null;
-  const myAvatar = points === null ? null : await selectedAvatar(viewer.userId);
+  // Аватар нь оноогүй ч толгойд гарна — хүүхэд бүр нүүртэй байх ёстой.
+  const myAvatar = await selectedAvatar(viewer.userId);
   const notices = await myAnnouncements(viewer, 3);
 
   const g = groupByDue(items);
@@ -90,9 +93,17 @@ export default async function StudentHome() {
   return (
     <AppShell
       viewer={viewer}
-      eyebrow="Сурагчийн орон зай"
       title={`Сайн уу, ${firstName}`}
-      subtitle="Жижиг алхам бүр чинь ахиц юм."
+      subtitle={myClass?.name ? `${myClass.name} анги` : "Ангид ороогүй"}
+      hero={{
+        avatar: <Avatar id={myAvatar} size={60} />,
+        stats: [
+          // Оноо нь тугийн ард. Унтраалттай бол зүгээр л энэ нүд гарахгүй.
+          ...(points !== null ? [{ value: String(points), label: "Оноо" }] : []),
+          { value: `${g.doneCount}/${g.totalCount}`, label: "Даалгавар" },
+          { value: String(todayLessons), label: "Хичээл өнөөдөр" },
+        ],
+      }}
     >
       <FeatureCard
         icon={g.pendingCount === 0 ? PartyPopper : Sparkles}
@@ -100,25 +111,30 @@ export default async function StudentHome() {
         eyebrow="Өнөөдөр"
         title={studentHeadline(g)}
       >
-        {myClass?.name ? `${myClass.name} анги` : "Ангид ороогүй"}
+        {g.totalCount === 0 ? "Багш даалгавар өгөөгүй байна." : "Жижиг алхам бүр чинь ахиц юм."}
       </FeatureCard>
 
       {/*
-        Оноо (`docs/DECISIONS.md` §18). Тугаар унтраалттай тул пилотын эхний
-        долоо хоногуудад огт гарахгүй — суурь тоог цэвэр авна.
+        Хуваарь, даалгавар доод nav-аас гарсан (Zulzaga, 2026-10-06) тул
+        энд холбоно — хуудас нь үлдсэн, зам нь л өөрчлөгдсөн.
       */}
-      {points !== null && (
-        <Link href="/suragch/shagnal" className="block">
-          <Card className="bg-role-student transition-colors hover:border-brand">
-            <div className="flex items-center gap-3">
-              <Avatar id={myAvatar} size={52} />
-              <div className="min-w-0 flex-1">
-                <p className="text-2xl font-extrabold text-navy">{points} оноо</p>
-                <p className="text-xs text-ink-soft">Шагнал сонгох →</p>
-              </div>
-            </div>
-          </Card>
-        </Link>
+      {pointsEnabled() && (
+        <div className="grid grid-cols-2 gap-2.5">
+          <Link
+            href="/suragch/daalgavar"
+            className="flex items-center gap-2 rounded-2xl border border-line bg-surface px-4 py-3 text-sm font-bold text-ink hover:border-brand"
+          >
+            <NotebookPen className="h-4 w-4 shrink-0 text-brand" strokeWidth={2.4} />
+            Бүх даалгавар
+          </Link>
+          <Link
+            href="/suragch/hovaari"
+            className="flex items-center gap-2 rounded-2xl border border-line bg-surface px-4 py-3 text-sm font-bold text-ink hover:border-brand"
+          >
+            <CalendarDays className="h-4 w-4 shrink-0 text-brand" strokeWidth={2.4} />
+            Хуваарь
+          </Link>
+        </div>
       )}
 
       {g.totalCount > 0 && (

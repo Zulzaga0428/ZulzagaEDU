@@ -187,6 +187,19 @@ export function nextSchoolDay(
   return null;
 }
 
+/**
+ * Өнөөдөр хэдэн хичээлтэй вэ — УБ-гийн өдрөөр.
+ *
+ * Сервер UTC дээр ажилладаг тул шууд `getDay()` авбал орой нь нэг өдөр
+ * хоцорно. `nextSchoolDay`-тэй ижил аргаар шилжүүлнэ.
+ */
+export function lessonsToday(all: LessonCell[], now: Date = new Date()): number {
+  const ub = new Date(now.getTime() + 8 * 3600_000);
+  const jsDay = ub.getUTCDay();
+  const today = jsDay === 0 ? 7 : jsDay;
+  return all.filter((l) => l.dayOfWeek === today).length;
+}
+
 export function lessonName(cell: LessonCell): string {
   return cell.subjectName ?? cell.customName ?? "—";
 }
