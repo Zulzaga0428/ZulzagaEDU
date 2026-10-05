@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { and, eq } from "drizzle-orm";
-import { BookOpen, Calculator, Megaphone, NotebookPen, PartyPopper, Sparkles } from "lucide-react";
+import { BookOpen, Megaphone, PartyPopper, Sparkles } from "lucide-react";
 import { db } from "@/server/db";
 import { classMembers, classes, users } from "@/server/db/schema";
 import { getViewer } from "@/server/auth/access";
@@ -9,13 +9,12 @@ import { AppShell } from "@/components/app-shell";
 import { Bar, Card, Empty, FeatureCard, SectionLabel } from "@/components/ui";
 import { IconBox } from "@/components/ui";
 import { myHomework } from "@/server/homework/service";
-import type { StudentHomeworkRow } from "@/server/homework/service";
 import { groupByDue, studentHeadline } from "@/server/homework/grouping";
 import { formatDueUb } from "@/server/homework/time";
 import { lessonName, myWeek, nextSchoolDay } from "@/server/schedule/service";
 import { myAnnouncements } from "@/server/announce/service";
-import { markDoneAction, undoDoneAction } from "./actions";
-import { PhotoUpload } from "@/components/photo-upload";
+import { undoDoneAction } from "./actions";
+import { StudentTask } from "@/components/student-task";
 import { myAttachments } from "@/server/files/storage";
 import { myPoints, pointsEnabled } from "@/server/points/service";
 import { selectedAvatar } from "@/server/points/avatars";
@@ -32,92 +31,6 @@ export const dynamic = "force-dynamic";
  */
 
 /** Хичээлийн нэрээр дүрс сонгоно — хүүхэд үсэг уншихаас өмнө дүрсээ таньдаг. */
-function subjectIcon(subject: string | null) {
-  const s = (subject ?? "").toLowerCase();
-  if (s.includes("матем")) return { icon: Calculator, tint: "шар" as const };
-  if (s.includes("хэл")) return { icon: BookOpen, tint: "цэнхэр" as const };
-  return { icon: NotebookPen, tint: "ягаан" as const };
-}
-
-function Task({
-  h,
-  when,
-  photos,
-}: {
-  h: StudentHomeworkRow;
-  when: string;
-  photos: string[];
-}) {
-  const { icon, tint } = subjectIcon(h.subject);
-  return (
-    <Card>
-      <div className="flex items-start gap-3">
-        <IconBox icon={icon} tint={tint} size="том" />
-        <div className="min-w-0 flex-1">
-          <p className="text-lg font-extrabold leading-tight text-ink">{h.title}</p>
-          <p className="text-xs text-ink-faint">
-            {h.subject ?? "Хичээл"} · {when}
-          </p>
-        </div>
-      </div>
-
-      {/*
-        Самбарын зураг — ЭНЭ Л даалгавар. Дүрсийг жижигрүүлж таслахгүй:
-        уншиж чадахгүй бол утга алга. Дарвал бүтэн хэмжээгээр нээнэ.
-      */}
-      {h.boardPhotos.length > 0 && (
-        <div className="mt-3 space-y-2">
-          {h.boardPhotos.map((id) => (
-            <a key={id} href={`/api/file/${id}`} target="_blank" rel="noreferrer" className="block">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={`/api/file/${id}`}
-                alt="Багшийн самбар"
-                className="w-full rounded-2xl border border-line object-contain"
-              />
-            </a>
-          ))}
-        </div>
-      )}
-
-      {h.description && (
-        <p className="mt-3 whitespace-pre-line rounded-2xl bg-surface-soft px-4 py-3 text-sm text-ink-soft">
-          {h.description}
-        </p>
-      )}
-
-      {photos.length > 0 && (
-        <div className="mt-3 flex gap-2 overflow-x-auto">
-          {photos.map((id) => (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              key={id}
-              src={`/api/file/${id}`}
-              alt="Илгээсэн зураг"
-              className="h-24 w-24 shrink-0 rounded-xl object-cover"
-            />
-          ))}
-        </div>
-      )}
-
-      {/* Даалгавар цаасан дээр хийгддэг — дэлгэц рүү оруулахын оронд зурагдана. */}
-      <div className="mt-3">
-        <PhotoUpload homeworkId={h.id} />
-      </div>
-
-      <form action={markDoneAction} className="mt-2">
-        <input type="hidden" name="homeworkId" value={h.id} />
-        <button
-          type="submit"
-          className="w-full rounded-2xl bg-brand px-4 py-4 text-base font-extrabold text-brand-ink hover:bg-brand-strong"
-        >
-          Зураггүй хийчихлээ
-        </button>
-      </form>
-    </Card>
-  );
-}
-
 export default async function StudentHome() {
   const viewer = await getViewer();
   if (!viewer) redirect("/login");
@@ -227,10 +140,10 @@ export default async function StudentHome() {
           <SectionLabel>Одоо хийх</SectionLabel>
           <div className="space-y-3">
             {g.overdue.map((h) => (
-              <Task key={h.id} h={h} when={`${formatDueUb(h.dueAt)} хүртэл байсан`} photos={photoMap.get(h.id) ?? []} />
+              <StudentTask key={h.id} h={h} when={`${formatDueUb(h.dueAt)} хүртэл байсан`} photos={photoMap.get(h.id) ?? []} />
             ))}
             {g.today.map((h) => (
-              <Task key={h.id} h={h} when="өнөөдөр хүртэл" photos={photoMap.get(h.id) ?? []} />
+              <StudentTask key={h.id} h={h} when="өнөөдөр хүртэл" photos={photoMap.get(h.id) ?? []} />
             ))}
           </div>
         </section>
@@ -241,7 +154,7 @@ export default async function StudentHome() {
           <SectionLabel>Дараа</SectionLabel>
           <div className="space-y-3">
             {g.upcoming.map((h) => (
-              <Task key={h.id} h={h} when={`${formatDueUb(h.dueAt)} хүртэл`} photos={photoMap.get(h.id) ?? []} />
+              <StudentTask key={h.id} h={h} when={`${formatDueUb(h.dueAt)} хүртэл`} photos={photoMap.get(h.id) ?? []} />
             ))}
           </div>
         </section>

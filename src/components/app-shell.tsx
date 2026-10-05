@@ -8,6 +8,7 @@ import { ROLE_LABEL } from "@/server/auth/roles";
 import { signOut } from "@/app/login/actions";
 import { EnableNotifications } from "@/components/enable-notifications";
 import { BottomNav } from "@/components/bottom-nav";
+import { langEnabled } from "@/server/lang/flag";
 import { publicVapidKey } from "@/server/notify/push";
 
 /**
@@ -43,8 +44,8 @@ export async function AppShell({
 
   const initial = (me?.name ?? "?").trim().split(/\s+/).pop()?.[0] ?? "?";
 
-  // Доод nav зөвхөн багшид. Түүний доор агуулга нуугдахгүйн тулд зай нэмнэ.
-  const hasNav = viewer.role === "TEACHER";
+  // Доод nav багш, сурагчид. Түүний доор агуулга нуугдахгүйн тулд зай нэмнэ.
+  const hasNav = viewer.role === "TEACHER" || viewer.role === "STUDENT";
 
   return (
     <div
@@ -103,7 +104,7 @@ export async function AppShell({
 
       <main className="mt-5 space-y-6">{children}</main>
 
-      {hasNav && <BottomNav />}
+      {hasNav && <BottomNav role={viewer.role} lang={langEnabled()} />}
     </div>
   );
 }
