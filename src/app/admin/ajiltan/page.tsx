@@ -185,13 +185,34 @@ export default async function FieldGuidePage() {
           итгэл нэг дор унана.
         </p>
         <ul className="mt-3 space-y-1.5 text-sm text-ink-soft">
-          <li>· <strong className="text-ink">Оноо, шагнал</strong> — бэлэн ч унтраалттай</li>
-          <li>· <strong className="text-ink">Хэл сурах, ТВ нэвтрүүлэг</strong> — байхгүй</li>
+          <li>· <strong className="text-ink">Хэл сурах</strong> — товч нь байгаа, доторх
+            агуулга нь хараахан алга. «Удахгүй нэмэгдэнэ» гэж хэл, «байна» гэж бүү хэл</li>
+          <li>· <strong className="text-ink">ТВ нэвтрүүлэг</strong> — байхгүй</li>
           <li>· <strong className="text-ink">Дүн, ирц бүртгэл</strong> — байхгүй, хийхгүй</li>
           <li>· <strong className="text-ink">Excel-ээс сурагч импортлох</strong> — байхгүй, гараар нэмнэ</li>
           <li>· <strong className="text-ink">Google-ээр нэвтрэх</strong> — байхгүй, утас + PIN</li>
           <li>· <strong className="text-ink">Чат</strong> — бүлгийн чат байхгүй. Багш↔эцэг эх хоёрын хооронд л яриа бий</li>
         </ul>
+      </section>
+
+      <section>
+        <h2 className="text-xs font-bold uppercase tracking-wider text-ink-faint">
+          Оноо ба шагнал
+        </h2>
+        <div className="mt-3 space-y-2 rounded-3xl border border-line bg-surface p-5 text-sm text-ink-soft">
+          <p>
+            Хүүхэд <strong className="text-ink">даалгавраа хийснээ тэмдэглэхэд 10 оноо</strong>,
+            дэвтрийнхээ зургийг илгээвэл нэмэлт 5 оноо авна. Хэдэн өдөр завсарласны
+            дараа эргэж ирвэл 15 оноо.
+          </p>
+          <p>
+            Оноогоороо амьтан нээнэ (Муур үнэгүй, бусад нь 30–300 оноо).
+          </p>
+          <p className="rounded-xl bg-surface-soft px-3 py-2">
+            ⚠️ <strong className="text-ink">Багш юу ч хийх шаардлагагүй.</strong> Багшийн
+            шалгалт оноонд огт нөлөөлөхгүй — захирал асуувал ингэж хариул.
+          </p>
+        </div>
       </section>
 
       <section>
