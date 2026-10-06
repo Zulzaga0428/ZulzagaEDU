@@ -117,6 +117,50 @@ export default async function FieldGuidePage() {
         </div>
       </section>
 
+      <section className="rounded-3xl border-2 border-warn-line bg-warn-bg p-5">
+        <h2 className="text-lg font-extrabold text-ink">
+          «Бидэнд Багш систем бий» гэвэл
+        </h2>
+        <p className="mt-2 text-sm leading-relaxed text-ink-soft">
+          Та үүнийг <strong className="text-ink">олон удаа сонсоно</strong>. Багш систем
+          бол Монголын App Store-ын боловсролын ангилалд 1-р байранд явдаг, 10,000+
+          татсан бодит бүтээгдэхүүн. Бэлэн байгаарай.
+        </p>
+
+        <div className="mt-4 space-y-3 rounded-2xl bg-surface p-4">
+          <p className="text-sm leading-relaxed text-ink">
+            <strong>1. Эхлээд зөвшөөр.</strong> «Сайн систем байгаа юм байна. Ирц,
+            хуваариа тэндээ хөтлөөрэй — бид түүнийг орлохгүй.»
+          </p>
+          <p className="text-sm leading-relaxed text-ink">
+            <strong>2. Дараа нь ялга.</strong> «Багш систем бол сургуулийн бүртгэл —
+            ирц, хуваарь, тайлан. Бид ирц ч, дүн ч бүртгэдэггүй. Бид{" "}
+            <strong className="text-brand">ганц зүйл</strong> хийдэг: багшийн самбар
+            дээрх даалгавар эцэг эхэд зөв хүрэх.»
+          </p>
+          <p className="text-sm leading-relaxed text-ink">
+            <strong>3. Асуу.</strong> «Одоо даалгавраа яаж дамжуулдаг вэ? Хүүхэд
+            самбараас дэвтэртээ хуулдаг уу?» — Тийм гэвэл яг бидний асуудал. Тэр
+            яриа нь чиний биш, <strong className="text-ink">түүний</strong> асуудлын
+            тухай болно.
+          </p>
+          <p className="text-sm leading-relaxed text-ink">
+            <strong>4. Үнэ.</strong> «Бид сургуулиас мөнгө авдаггүй. Нэмэлт төсөв
+            шаардахгүй.»
+          </p>
+          <p className="text-sm leading-relaxed text-ink">
+            <strong>5. Багшийн ачаалал.</strong> «Багш ирц оруулахад цаг зарцуулдаг.
+            Бидэнд багш юу ч оруулдаггүй — самбараа зурагдана, 3 секунд.»
+          </p>
+        </div>
+
+        <p className="mt-4 rounded-2xl bg-surface px-4 py-3 text-sm leading-relaxed text-ink">
+          ⛔ <strong>Тэднийг бүү муул.</strong> Тэр системийг захирал өөрөө сонгосон.
+          Сонголтыг нь шүүмжлэх нь түүнийг шүүмжилсэнтэй адил — яриа тэндээ дуусна.
+          Бид орлох гэж ирээгүй, нөхөх гэж ирсэн.
+        </p>
+      </section>
+
       <section>
         <h2 className="text-xs font-bold uppercase tracking-wider text-ink-faint">
           Захирлын асуух 5 асуулт
