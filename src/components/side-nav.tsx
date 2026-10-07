@@ -23,11 +23,14 @@ export function SideNav({
   lang = false,
   points = false,
   schoolName,
+  footer,
 }: {
   role: MembershipRole;
   lang?: boolean;
   points?: boolean;
   schoolName?: string | null;
+  /** Профайл, гарах — серверийн үйлдэл тул дээрээс дамжина. */
+  footer?: React.ReactNode;
 }) {
   const pathname = usePathname();
   const items = sideItems(role, lang, points);
@@ -74,6 +77,8 @@ export function SideNav({
           );
         })}
       </ul>
+
+      {footer && <div className="mt-auto border-t border-line pt-3">{footer}</div>}
     </nav>
   );
 }

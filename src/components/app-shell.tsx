@@ -71,6 +71,39 @@ export async function AppShell({
         lang={langEnabled()}
         points={pointsEnabled()}
         schoolName={school?.name ?? null}
+        footer={
+          <div className="flex items-center gap-2 px-1">
+            <Link
+              href="/profil"
+              title={me?.name ?? ""}
+              className="flex min-w-0 flex-1 items-center gap-2 rounded-xl px-2 py-2 hover:bg-surface-soft"
+            >
+              <span
+                aria-hidden
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-warn-bg text-sm font-extrabold text-accent"
+              >
+                {initial}
+              </span>
+              <span className="min-w-0">
+                <span className="block truncate text-sm font-bold text-ink">
+                  {me?.name ?? "Миний хуудас"}
+                </span>
+                <span className="block truncate text-xs text-ink-faint">
+                  {ROLE_LABEL[viewer.role]}
+                </span>
+              </span>
+            </Link>
+            <form action={signOut}>
+              <button
+                type="submit"
+                aria-label="Гарах"
+                className="flex h-9 w-9 items-center justify-center rounded-full border border-line text-ink-faint hover:border-brand hover:text-brand"
+              >
+                <LogOut className="h-4 w-4" strokeWidth={2.2} />
+              </button>
+            </form>
+          </div>
+        }
       />
       <div className="lg:pl-60">
     <div
@@ -90,7 +123,12 @@ export async function AppShell({
               "linear-gradient(110deg, var(--brand) 0%, var(--dot-student) 100%)",
           }}
         >
-          <div className="flex items-center justify-between gap-3">
+          {/*
+            ⚠️ Компьютер дээр энэ мөр БҮХЭЛДЭЭ нуугдана — лого, сургууль,
+            профайл, гарах дөрвүүлээ хажуугийн цэсэнд аль хэдийн байна.
+            Хоёуланг нь зэрэг үзүүлбэл нэг дэлгэц дээр хоёр толгой болно.
+          */}
+          <div className="flex items-center justify-between gap-3 lg:hidden">
             <span className="flex items-center gap-2">
               <span aria-hidden className="text-base font-extrabold tracking-tight text-white/90">
                 zulzaga
@@ -135,7 +173,12 @@ export async function AppShell({
         </header>
       ) : (
       <header className="rounded-3xl border border-line bg-surface p-5 shadow-[0_1px_2px_rgba(18,38,63,0.04)]">
-          <div className="flex items-center justify-between gap-3">
+          {/*
+            ⚠️ Компьютер дээр энэ мөр БҮХЭЛДЭЭ нуугдана — лого, сургууль,
+            профайл, гарах дөрвүүлээ хажуугийн цэсэнд аль хэдийн байна.
+            Хоёуланг нь зэрэг үзүүлбэл нэг дэлгэц дээр хоёр толгой болно.
+          */}
+          <div className="flex items-center justify-between gap-3 lg:hidden">
             <span className="flex items-center gap-2">
               <span
                 aria-hidden
@@ -168,12 +211,13 @@ export async function AppShell({
             </span>
           </div>
   
-          <p className="mt-5 text-[11px] font-bold uppercase tracking-wider text-accent">
+          <p className="mt-5 text-[11px] font-bold uppercase tracking-wider text-accent lg:mt-0">
             {eyebrow ?? ROLE_LABEL[viewer.role]}
           </p>
           <h1 className="mt-1 text-2xl font-extrabold leading-tight text-navy">{title}</h1>
           {subtitle && <p className="mt-1 text-sm text-ink-soft">{subtitle}</p>}
-          <p className="mt-2 text-xs text-ink-faint">{school?.name ?? ""}</p>
+          {/* Сургуулийн нэр хажуугийн цэсэнд бий — компьютер дээр давхардуулахгүй. */}
+          <p className="mt-2 text-xs text-ink-faint lg:hidden">{school?.name ?? ""}</p>
   
           {/*
             Дүр сэлгэх нь одоо профайл дээр (`/profil`). Энд давхардуулбал
