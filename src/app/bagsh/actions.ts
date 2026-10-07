@@ -16,7 +16,24 @@ import { attachToHomework } from "@/server/files/storage";
 import { endOfDayUb } from "@/server/homework/time";
 import { notifyChecked, notifyNewHomework } from "@/server/notify/push";
 
-export async function createHomeworkAction(formData: FormData): Promise<void> {
+/**
+ * Даалгавар үүсгэсний хариу.
+ *
+ * ⚠️ Яагаад `redirect` биш, хариу буцаадаг вэ (`docs/DECISIONS.md` §24):
+ * 2026-10-07-нд жинхэнэ хөтчөөр хэмжихэд энэ үйлдэл **даалгаврыг үүсгээд**
+ * эргүүлэлт нь хөтчийг хөдөлгөдөггүй байв — багш маягтан дээрээ бөглөөстэй
+ * хэвээр үлдэж, «болоогүй юм байна» гэж бодоод дахин дарж, ХОЁР ижил
+ * даалгавар үүсгэдэг. Хуучин кодоор, цонхтой хөтчөөр хоёр удаа батлагдсан.
+ *
+ * Одоо бүтсэн эсэхийг ил буцаана. Хуудас сольж, нооргийг цэвэрлэж, товчийг
+ * хаахыг клиент тал шийднэ — чимээгүй бүтэлгүйтэл үлдэхгүй.
+ */
+export type CreateResult = { ok: true } | { ok: false; error: string };
+
+export async function createHomeworkAction(
+  _prev: CreateResult | null,
+  formData: FormData,
+): Promise<CreateResult> {
   const viewer = await requireViewer();
 
   const classId = formData.get("classId");
@@ -27,7 +44,7 @@ export async function createHomeworkAction(formData: FormData): Promise<void> {
   const boardFileId = formData.get("boardFileId");
 
   if (typeof classId !== "string" || typeof rawTitle !== "string" || typeof dueDate !== "string") {
-    throw new Error("Дутуу утга.");
+    return { ok: false, error: "Дутуу утга байна. Хуудсыг дахин нээгээд оролдоно уу." };
   }
 
   const subject = typeof subjectId === "string" && subjectId !== "" ? subjectId : null;
@@ -40,7 +57,7 @@ export async function createHomeworkAction(formData: FormData): Promise<void> {
   */
   let title = rawTitle.trim();
   if (title.length === 0) {
-    if (!board) throw new Error("Гарчиг эсвэл самбарын зураг хэрэгтэй.");
+    if (!board) return { ok: false, error: "Юу хийхийг бич, эсвэл самбараа зурагдаарай." };
     const name = subject
       ? (await schoolSubjects(viewer)).find((s) => s.id === subject)?.name
       : null;
@@ -76,7 +93,9 @@ export async function createHomeworkAction(formData: FormData): Promise<void> {
   }
 
   revalidatePath("/bagsh");
-  redirect("/bagsh");
+  // Энэ мөрт хүрсэн гэдэг нь даалгавар DB-д орсон гэсэн үг — ноорог
+  // цэвэрлэх, хуудас солих эрхийг зөвхөн энэ хариу өгнө.
+  return { ok: true };
 }
 
 export async function checkSubmissionAction(formData: FormData): Promise<void> {
