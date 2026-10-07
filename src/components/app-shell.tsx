@@ -8,6 +8,7 @@ import { ROLE_LABEL } from "@/server/auth/roles";
 import { signOut } from "@/app/login/actions";
 import { EnableNotifications } from "@/components/enable-notifications";
 import { BottomNav } from "@/components/bottom-nav";
+import { SideNav } from "@/components/side-nav";
 import { langEnabled } from "@/server/lang/flag";
 import { pointsEnabled } from "@/server/points/service";
 import { publicVapidKey } from "@/server/notify/push";
@@ -58,10 +59,23 @@ export async function AppShell({
   // Доод nav багш, сурагчид. Түүний доор агуулга нуугдахгүйн тулд зай нэмнэ.
   const hasNav = viewer.role === "TEACHER" || viewer.role === "STUDENT";
 
+  /*
+    Компьютер дээр хажуугийн цэс (`lg`-ээс дээш), утсан дээр доод nav.
+    Бүрхүүл нь өргөн дэлгэцэд 480 пикселийн хоригоо тавьдаг — эс бөгөөс
+    27 инчийн дэлгэц дээр нарийн тууз болж харагдана (Zulzaga, 2026-10-08).
+  */
   return (
+    <>
+      <SideNav
+        role={viewer.role}
+        lang={langEnabled()}
+        points={pointsEnabled()}
+        schoolName={school?.name ?? null}
+      />
+      <div className="lg:pl-60">
     <div
-      className={`mx-auto w-full ${wide ? "max-w-5xl" : "max-w-[480px]"} px-4 pt-4 ${
-        hasNav ? "pb-28" : "pb-16"
+      className={`mx-auto w-full ${wide ? "max-w-5xl" : "max-w-[480px] lg:max-w-5xl"} px-4 pt-4 lg:px-8 lg:pt-8 ${
+        hasNav ? "pb-28 lg:pb-12" : "pb-16"
       }`}
     >
       {hero ? (
@@ -174,5 +188,7 @@ export async function AppShell({
 
       {hasNav && <BottomNav role={viewer.role} lang={langEnabled()} points={pointsEnabled()} />}
     </div>
+      </div>
+    </>
   );
 }

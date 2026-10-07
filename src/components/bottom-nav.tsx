@@ -2,21 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  CalendarDays,
-  Gift,
-  Home,
-  Languages,
-  Megaphone,
-  MessageSquare,
-  NotebookPen,
-  Plus,
-  Star,
-  User,
-  Users,
-  type LucideIcon,
-} from "lucide-react";
 import type { MembershipRole } from "@/server/auth/roles";
+import { ROLE_HOME } from "@/server/auth/roles";
+import {
+  TEACHER_BOTTOM,
+  isActive,
+  studentBottom,
+  type NavItem,
+} from "@/components/nav-items";
 
 /**
  * Натив апп шиг доод nav.
@@ -34,57 +27,7 @@ import type { MembershipRole } from "@/server/auth/roles";
  * 5 дахь нүдэнд профайл.
  */
 
-type Item = { href: string; label: string; icon: LucideIcon };
-
-const TEACHER: { left: Item[]; center: Item; right: Item[] } = {
-  left: [
-    { href: "/bagsh", label: "Нүүр", icon: Home },
-    { href: "/bagsh/urilga", label: "Сурагч", icon: Users },
-  ],
-  center: { href: "/bagsh/daalgavar/shine", label: "Даалгавар", icon: Plus },
-  right: [
-    { href: "/yaria", label: "Яриа", icon: MessageSquare },
-    { href: "/bagsh/zarlal", label: "Зарлал", icon: Megaphone },
-  ],
-};
-
-/**
- * Сурагчийн nav.
- *
- * **Оноо асаалттай үед** (Zulzaga, 2026-10-06): Нүүр · Миний оноо ·
- * **Миний хэл** · Урамшуулал · Профайл. Хуваарь, даалгавар хоёр nav-аас
- * гарсан — нүүр хуудас хоёуланг нь аль хэдийн харуулдаг, толгойн тоонд ч
- * байгаа. Тэднийг нүүрнээс холбоно.
- *
- * **Унтраалттай үед** хуучнаараа: Нүүр · Хуваарь · Даалгавар · Профайл.
- * Пилотын эхний долоо хоногуудад баг ийм хувилбар харна — nav хоосон
- * үлдэж болохгүй.
- */
-function studentNav(lang: boolean, points: boolean): { left: Item[]; center: Item; right: Item[] } {
-  const home: Item = { href: "/suragch", label: "Нүүр", icon: Home };
-  const profile: Item = { href: "/profil", label: "Профайл", icon: User };
-
-  if (!points) {
-    return {
-      left: [home, { href: "/suragch/hovaari", label: "Хуваарь", icon: CalendarDays }],
-      center: { href: "/suragch/daalgavar", label: "Даалгавар", icon: NotebookPen },
-      right: [profile],
-    };
-  }
-
-  const left = [home, { href: "/suragch/onoo", label: "Миний оноо", icon: Star }];
-  const rewards: Item = { href: "/suragch/shagnal", label: "Урамшуулал", icon: Gift };
-
-  // Хэл унтраалттай бол урамшуулал нь дунд — оноо цуглуулах шалтгаан тэнд.
-  return lang
-    ? { left, center: { href: "/hel", label: "Миний хэл", icon: Languages }, right: [rewards, profile] }
-    : { left, center: rewards, right: [profile] };
-}
-
-function isActive(pathname: string, href: string, home: string) {
-  // Нүүр бол яг таарсан үед л идэвхтэй — эс бөгөөс бүх дэд хуудсанд асна.
-  return href === home ? pathname === href : pathname.startsWith(href);
-}
+type Item = NavItem;
 
 function Cell({ item, active, home }: { item: Item; active: boolean; home: string }) {
   const Icon = item.icon;
@@ -116,14 +59,15 @@ export function BottomNav({
 
   if (role !== "TEACHER" && role !== "STUDENT") return null;
 
-  const nav = role === "TEACHER" ? TEACHER : studentNav(lang, points);
-  const home = role === "TEACHER" ? "/bagsh" : "/suragch";
+  const nav = role === "TEACHER" ? TEACHER_BOTTOM : studentBottom(lang, points);
+  const home = ROLE_HOME[role];
   const Center = nav.center.icon;
 
   return (
     <nav
       aria-label="Үндсэн цэс"
-      className="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur"
+      /* `lg`-ээс дээш хажуугийн цэс орлоно — хоёулаа зэрэг гарвал давхардана. */
+      className="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden"
     >
       <div className="mx-auto flex w-full max-w-[480px] items-end justify-between gap-1 px-3 pt-1.5">
         {nav.left.map((it) => (

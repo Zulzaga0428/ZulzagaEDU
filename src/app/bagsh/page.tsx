@@ -42,6 +42,17 @@ export default async function TeacherHome() {
   // Хийсэн ч багш хараагүй ажлын тоо. Өмнө нь «хэсэгчлэн хийгдсэн даалгаврын
   // тоо»-г харуулж байсан нь шалгах ажилтай огт хамаагүй тоо байв.
   const waiting = all.reduce((n, h) => n + h.toCheck, 0);
+
+  /*
+    Компьютерийн дэлгэцийн тоон мөр (Zulzaga-гийн загвар, 2026-10-08).
+    ⚠️ «Дундаж оноо» гэсэн нүд ЗОРИУД байхгүй — бид дүн тавьдаггүй (§7), тэр
+    нь ESIS, Багш системийн талбар. Оронд нь ДААЛГАВРЫН гүйцэтгэлийн хувь:
+    ижил байрлал, ижил хэрэгцээ, дүнгүйгээр.
+  */
+  const expected = all.reduce((n, h) => n + h.total, 0);
+  const delivered = all.reduce((n, h) => n + h.done, 0);
+  const missing = expected - delivered;
+  const donePct = expected === 0 ? 0 : Math.round((delivered / expected) * 100);
   const nextToCheck = all.find((h) => h.toCheck > 0);
 
   return (
@@ -62,11 +73,21 @@ export default async function TeacherHome() {
             Даалгавар өгөх
           </Link>
 
-          <div className="grid grid-cols-3 gap-2.5">
+          {/*
+            Утсан дээр 3 нүд (зай хомс), компьютер дээр 5 — нэмэгдсэн хоёр нь
+            зөвхөн өргөн дэлгэцэд утга учиртай нарийвчлал.
+          */}
+          <div className="grid grid-cols-3 gap-2.5 lg:grid-cols-5">
             <StatTile value={classList.reduce((n, c) => n + c.students, 0)} label="Сурагч" />
             <StatTile value={all.length} label="Даалгавар" />
             {/* «Шалгах» гэвэл хийх ёстой ажил мэт. Энэ бол зүгээр нэг тоо. */}
             <StatTile value={waiting} label="Илгээсэн" tone="онцлох" />
+            <div className="hidden lg:block">
+              <StatTile value={missing} label="Өгөөгүй" />
+            </div>
+            <div className="hidden lg:block">
+              <StatTile value={`${donePct}%`} label="Хийсэн хувь" />
+            </div>
           </div>
         </>
       )}
