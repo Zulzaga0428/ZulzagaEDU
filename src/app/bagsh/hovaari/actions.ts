@@ -1,6 +1,5 @@
 "use server";
 
-import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requireViewer } from "@/server/auth/access";
 import { DAYS, MAX_PERIODS, saveWeek } from "@/server/schedule/service";
@@ -11,10 +10,22 @@ import { DAYS, MAX_PERIODS, saveWeek } from "@/server/schedule/service";
  * Талбарын нэр `c-<өдөр>-<цаг>` хэлбэртэй. Хоосон утга = тэр цагт хичээл
  * байхгүй. Бүтнээр илгээдэг тул «хассан» гэсэн тусдаа үйлдэл хэрэггүй.
  */
-export async function saveWeekAction(formData: FormData): Promise<void> {
+/**
+ * ⚠️ `redirect` биш, хариу буцаана (`docs/DECISIONS.md` §24). 2026-10-07-нд
+ * хэмжихэд хуваарь **хадгалагддаг** ч хөтөч хөдөлдөггүй байв — багш «үр дүн
+ * харагдахгүй» гэж бодно, дээрх «одоо хадгалагдсан» тойм ч шинэчлэгдэхгүй.
+ */
+export type SaveResult = { ok: true } | { ok: false; error: string };
+
+export async function saveWeekAction(
+  _prev: SaveResult | null,
+  formData: FormData,
+): Promise<SaveResult> {
   const viewer = await requireViewer();
   const classId = formData.get("classId");
-  if (typeof classId !== "string") throw new Error("Дутуу утга.");
+  if (typeof classId !== "string") {
+    return { ok: false, error: "Анги танигдсангүй. Хуудсыг дахин нээнэ үү." };
+  }
 
   const cells: { dayOfWeek: number; period: number; subjectId: string | null }[] = [];
   for (let day = 1; day <= DAYS.length; day++) {
@@ -28,5 +39,5 @@ export async function saveWeekAction(formData: FormData): Promise<void> {
 
   await saveWeek(viewer, classId, cells);
   revalidatePath("/bagsh/hovaari");
-  redirect("/bagsh/hovaari?hadgalsan=1");
+  return { ok: true };
 }

@@ -1,6 +1,5 @@
 "use server";
 
-import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requireViewer } from "@/server/auth/access";
 import {
@@ -13,7 +12,20 @@ import { notifyAnnouncement } from "@/server/notify/push";
 
 const AUDIENCES = ["ALL", "PARENTS", "STUDENTS"] as const;
 
-export async function postAnnouncementAction(formData: FormData): Promise<void> {
+/**
+ * ⚠️ `redirect` биш, хариу буцаана (`docs/DECISIONS.md` §24).
+ *
+ * 2026-10-07-нд хэмжихэд энэ үйлдэл зарлалыг **хадгалаад** эцэг эх рүү
+ * мэдэгдэл явуулж байхад хөтөч хөдөлдөггүй, бичсэн текст талбарт үлддэг
+ * байв. Багш «болоогүй» гэж бодоод дахин дарвал ангийн БҮХ эцэг эхэд хоёр
+ * ижил зарлал, хоёр мэдэгдэл очно. Даалгавраас ч муу — учир нь утас дуугарна.
+ */
+export type PostResult = { ok: true } | { ok: false; error: string };
+
+export async function postAnnouncementAction(
+  _prev: PostResult | null,
+  formData: FormData,
+): Promise<PostResult> {
   const viewer = await requireViewer();
   const classId = formData.get("classId");
   const body = formData.get("body");
@@ -26,7 +38,7 @@ export async function postAnnouncementAction(formData: FormData): Promise<void> 
     typeof audience !== "string" ||
     !(AUDIENCES as readonly string[]).includes(audience)
   ) {
-    throw new Error("Дутуу утга.");
+    return { ok: false, error: "Зарлалаа бичээд хэнд илгээхээ сонгоно уу." };
   }
 
   const id = await postAnnouncement(viewer, {
@@ -55,7 +67,7 @@ export async function postAnnouncementAction(formData: FormData): Promise<void> 
   }
 
   revalidatePath("/bagsh/zarlal");
-  redirect("/bagsh/zarlal?ilgeesen=1");
+  return { ok: true };
 }
 
 export async function deleteAnnouncementAction(formData: FormData): Promise<void> {

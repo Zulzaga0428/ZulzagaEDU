@@ -1,12 +1,12 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { CalendarDays, Check } from "lucide-react";
+import { CalendarDays } from "lucide-react";
 import { getViewer } from "@/server/auth/access";
 import { AppShell } from "@/components/app-shell";
 import { Card, Empty, SectionLabel } from "@/components/ui";
 import { myClasses, schoolSubjects } from "@/server/homework/service";
 import { DAYS, MAX_PERIODS, lessonName, teacherWeek } from "@/server/schedule/service";
-import { saveWeekAction } from "./actions";
+import { SaveWeekForm } from "@/components/save-week-form";
 
 export const dynamic = "force-dynamic";
 
@@ -24,13 +24,11 @@ export const dynamic = "force-dynamic";
  * нүдэнд харагдана), товч нь **доод талд наалдсан** байна, баталгаа нь
  * товчныхоо хажууд гарна.
  */
-export default async function SchedulePage({ searchParams }: PageProps<"/bagsh/hovaari">) {
+export default async function SchedulePage() {
   const viewer = await getViewer();
   if (!viewer) redirect("/login");
   if (viewer.role !== "TEACHER") redirect("/");
 
-  const { hadgalsan } = await searchParams;
-  const justSaved = hadgalsan === "1";
 
   const [classList, subjectList] = await Promise.all([
     myClasses(viewer),
@@ -77,16 +75,6 @@ export default async function SchedulePage({ searchParams }: PageProps<"/bagsh/h
         ← Буцах
       </Link>
 
-      {justSaved && (
-        <p
-          role="status"
-          className="flex items-center gap-2 rounded-2xl border border-line bg-role-parent px-4 py-3 text-sm font-bold text-ink"
-        >
-          <Check className="h-4 w-4 shrink-0 text-dot-parent" strokeWidth={3} />
-          Хадгалагдлаа. Сурагч, эцэг эх хоёулаа харна.
-        </p>
-      )}
-
       {/*
         Одоо хадгалагдсан зүйл. Хадгалахад энэ тойм өөрчлөгдөнө — багш үр
         дүнг НҮДЭЭР хардаг, мэдэгдэл уншихаас илүү найдвартай.
@@ -123,9 +111,7 @@ export default async function SchedulePage({ searchParams }: PageProps<"/bagsh/h
           Хичээлийн жагсаалт хоосон байна. Эрхлэгчид хандана уу.
         </Empty>
       ) : (
-        <form action={saveWeekAction} className="space-y-4 pb-24">
-          <input type="hidden" name="classId" value={klass.id} />
-
+        <SaveWeekForm classId={klass.id}>
           {DAYS.map((dayName, i) => {
             const day = i + 1;
             return (
@@ -161,31 +147,7 @@ export default async function SchedulePage({ searchParams }: PageProps<"/bagsh/h
             );
           })}
 
-          {/*
-            Товч нь үргэлж хүрэх зайд — 42 сонголтыг гүйлгэж дуусгах
-            шаардлагагүй. Доод nav-ын ЯГ ДЭЭР суух ёстой: `bottom-0` үлдээвэл
-            nav-ыг бүрэн дарж, багш хуваариас гарч чадахгүй болно.
-          */}
-          <div className="fixed inset-x-0 bottom-[calc(3.75rem+env(safe-area-inset-bottom))] z-40 border-t border-line bg-surface/95 px-4 py-3 backdrop-blur">
-            <div className="mx-auto flex w-full max-w-[480px] items-center gap-3">
-              {justSaved && (
-                <span className="flex shrink-0 items-center gap-1 text-xs font-bold text-dot-parent">
-                  <Check className="h-4 w-4" strokeWidth={3} />
-                  Хадгалсан
-                </span>
-              )}
-              <button
-                type="submit"
-                className="flex-1 rounded-2xl bg-brand px-4 py-4 text-base font-extrabold text-brand-ink hover:bg-brand-strong"
-              >
-                Хадгалах
-              </button>
-            </div>
-          </div>
-
-          {/* Хамгийн сүүлийн сонголт хоёр самбарын доор нуугдахгүйн тулд. */}
-          <div aria-hidden className="h-16" />
-        </form>
+        </SaveWeekForm>
       )}
     </AppShell>
   );
