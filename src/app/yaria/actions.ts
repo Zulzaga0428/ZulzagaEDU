@@ -4,16 +4,27 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requireViewer } from "@/server/auth/access";
 import { sendMessage, startThreadForChild } from "@/server/thread/service";
-import { notifyThreadMessage } from "@/server/notify/push";
+import { inBackground, notifyThreadMessage } from "@/server/notify/push";
 
-export async function sendMessageAction(formData: FormData): Promise<void> {
+/**
+ * ⚠️ Хариу буцаана (`docs/DECISIONS.md` §24). 2026-10-08-нд жинхэнэ хөтчөөр
+ * хэмжихэд мессеж **хадгалагддаг** ч ярианд гарч ирдэггүй, бичсэн текст
+ * талбарт үлддэг байв. Багш дахин бичнэ (эцэг эхэд хоёр ижил мессеж), эсвэл
+ * бууж өгөөд Messenger рүү буцна — §17-ийн бүх зорилго тэндээс унана.
+ */
+export type SendResult = { ok: true } | { ok: false; error: string };
+
+export async function sendMessageAction(
+  _prev: SendResult | null,
+  formData: FormData,
+): Promise<SendResult> {
   const viewer = await requireViewer();
   const threadId = formData.get("threadId");
   const body = formData.get("body");
   if (typeof threadId !== "string" || typeof body !== "string") {
-    throw new Error("Дутуу утга.");
+    return { ok: false, error: "Яриа танигдсангүй. Хуудсыг дахин нээнэ үү." };
   }
-  if (body.trim().length === 0) return;
+  if (body.trim().length === 0) return { ok: false, error: "Мессеж хоосон байна." };
 
   const sent = await sendMessage(viewer, threadId, body);
 
@@ -22,8 +33,8 @@ export async function sendMessageAction(formData: FormData): Promise<void> {
     аппаа нээх хүртэл мэдэхгүй. Багш руу цагт нэг удаа түлхдэг (§17).
     Илгээлт унавал мессеж аль хэдийн хадгалагдсан тул үйлдлийг унагаахгүй.
   */
-  try {
-    await notifyThreadMessage({
+  inBackground(
+    notifyThreadMessage({
       schoolId: viewer.schoolId,
       threadId: sent.threadId,
       classId: sent.classId,
@@ -31,13 +42,13 @@ export async function sendMessageAction(formData: FormData): Promise<void> {
       studentName: sent.studentName,
       authorUserId: viewer.userId,
       preview: sent.preview,
-    });
-  } catch (err) {
-    console.error("Ярианы мэдэгдэл илгээхэд алдаа:", err);
-  }
+    }),
+    "ярианы мессеж",
+  );
 
   revalidatePath(`/yaria/${threadId}`);
   revalidatePath("/yaria");
+  return { ok: true };
 }
 
 /** Хүүхдийн хуудаснаас яриа эхлүүлэх — байвал түүн рүү нь очно. */

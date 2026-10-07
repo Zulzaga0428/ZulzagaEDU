@@ -14,7 +14,7 @@ import {
 } from "@/server/homework/service";
 import { attachToHomework } from "@/server/files/storage";
 import { endOfDayUb } from "@/server/homework/time";
-import { notifyChecked, notifyNewHomework } from "@/server/notify/push";
+import { inBackground, notifyChecked, notifyNewHomework } from "@/server/notify/push";
 
 /**
  * Даалгавар үүсгэсний хариу.
@@ -77,20 +77,19 @@ export async function createHomeworkAction(
     await attachToHomework(viewer, homeworkId, board);
   }
 
-  // Мэдэгдэл бүтэхгүй байж болно (зөвшөөрөл өгөөгүй, iPhone дээр дэлгэцэнд
-  // нэмээгүй). Даалгавар аль хэдийн үүссэн тул үүнээс болж уначихгүй.
-  try {
-    const klass = (await myClasses(viewer)).find((c) => c.id === classId);
-    await notifyNewHomework({
+  // Мэдэгдэл нь багшийн хүлээлтийн ард — §24-ийн хэмжилт. Бүтэхгүй байж
+  // болно (зөвшөөрөл өгөөгүй, iPhone дээр дэлгэцэнд нэмээгүй).
+  const klass = (await myClasses(viewer)).find((c) => c.id === classId);
+  inBackground(
+    notifyNewHomework({
       schoolId: viewer.schoolId,
       classId,
       homeworkId,
       title,
       className: klass ? `${klass.name} анги` : "Анги",
-    });
-  } catch (err) {
-    console.error("Мэдэгдэл илгээхэд алдаа:", err);
-  }
+    }),
+    "шинэ даалгавар",
+  );
 
   revalidatePath("/bagsh");
   // Энэ мөрт хүрсэн гэдэг нь даалгавар DB-д орсон гэсэн үг — ноорог

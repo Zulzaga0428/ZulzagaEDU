@@ -8,7 +8,7 @@ import {
   postAnnouncement,
   type Audience,
 } from "@/server/announce/service";
-import { notifyAnnouncement } from "@/server/notify/push";
+import { inBackground, notifyAnnouncement } from "@/server/notify/push";
 
 const AUDIENCES = ["ALL", "PARENTS", "STUDENTS"] as const;
 
@@ -47,24 +47,29 @@ export async function postAnnouncementAction(
     audience: audience as Audience,
   });
 
-  // Мэдэгдэл бүтэхгүй ч зарлал аль хэдийн хадгалагдсан — үүнээс болж уначихгүй.
-  try {
-    const { students, parents } = await announcementRecipients(
-      viewer.schoolId,
-      classId,
-      audience as Audience,
-    );
-    await notifyAnnouncement({
-      schoolId: viewer.schoolId,
-      announcementId: id,
-      body,
-      className: typeof className === "string" ? className : null,
-      students,
-      parents,
-    });
-  } catch (err) {
-    console.error("Зарлалын мэдэгдэл илгээхэд алдаа:", err);
-  }
+  /*
+    Мэдэгдэл нь багшийн хүлээлтийн АРД (§24). Энэ алхам нь ангийн эцэг эх
+    бүрийн утас руу дараалан очдог тул хамгийн удаан нь — 2026-10-08-нд
+    зарлал илгээх нь 10.1 секунд болж хэмжигдсэн.
+  */
+  inBackground(
+    (async () => {
+      const { students, parents } = await announcementRecipients(
+        viewer.schoolId,
+        classId,
+        audience as Audience,
+      );
+      await notifyAnnouncement({
+        schoolId: viewer.schoolId,
+        announcementId: id,
+        body,
+        className: typeof className === "string" ? className : null,
+        students,
+        parents,
+      });
+    })(),
+    "зарлал",
+  );
 
   revalidatePath("/bagsh/zarlal");
   return { ok: true };
