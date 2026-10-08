@@ -19,13 +19,23 @@ import {
   teachesClass,
   type Viewer,
 } from "@/server/auth/access";
+import {
+  isR2Key,
+  newObjectKey,
+  objectKeyOf,
+  r2Delete,
+  r2Enabled,
+  r2Put,
+  R2_SCHEME,
+  signedUrl,
+} from "@/server/files/r2";
 
 /**
- * Файлын хадгалалт — Railway-гийн байнгын диск дээр.
+ * Файлын хадгалалт.
  *
- * Пилотод 24 сурагчийн хэдэн зуун зураг л байна. Обьект хадгалалт (R2, S3)
- * нэмбэл гадны данс, түлхүүр, зардал нэмэгдэнэ — өсөх үед шилжинэ,
- * одоо хэрэггүй.
+ * 2026-10-09-нөөс ШИНЭ зураг Cloudflare R2 руу (`./r2.ts`) — R2-ийн түлхүүр
+ * тохируулагдсан үед. Түүнээс өмнөх зураг Railway-гийн диск дээрээ үлдэж,
+ * ижилхэн уншигдсаар байна. Аль нь хаана байгааг `storageKey` хэлнэ.
  *
  * ⚠️ Файлын зам таамаглахад бэрх ч гэсэн ТЭР НЬ ХАМГААЛАЛТ БИШ. Татах бүрд
  * эрхийг сервер шалгана (`docs/PERMISSIONS.md`).
@@ -60,10 +70,22 @@ export async function saveImage(
   if (data.byteLength === 0) throw new Error("Файл хоосон байна.");
   if (data.byteLength > MAX_BYTES) throw new Error("Зураг хэт том байна.");
 
-  const storageKey = keyFor(viewer.schoolId);
-  const full = pathFor(storageKey);
-  await mkdir(dirname(full), { recursive: true });
-  await writeFile(full, data);
+  /*
+    Эхлээд зургаа хадгална, ДАРАА нь мөрөө бичнэ. Эсрэгээрээ бол мөр нь
+    байгаа атлаа зураг нь байхгүй «эвдэрсэн зураг» үлдэнэ. Энэ дарааллаар
+    хамгийн муу тохиолдол нь хэн ч заадаггүй илүү объект — хор хөнөөлгүй.
+  */
+  let storageKey: string;
+  if (r2Enabled()) {
+    const objectKey = newObjectKey(viewer.schoolId, `${randomBytes(16).toString("hex")}.bin`);
+    await r2Put(objectKey, data, mime);
+    storageKey = `${R2_SCHEME}${objectKey}`;
+  } else {
+    storageKey = keyFor(viewer.schoolId);
+    const full = pathFor(storageKey);
+    await mkdir(dirname(full), { recursive: true });
+    await writeFile(full, data);
+  }
 
   const [row] = await db
     .insert(files)
@@ -172,7 +194,19 @@ async function canRead(viewer: Viewer, fileId: string): Promise<boolean> {
   return false;
 }
 
-export type FileContent = { bytes: Buffer; mime: string };
+/**
+ * Зургийг хэрхэн өгөх вэ.
+ *
+ * Диск дээрх хуучин зургийг байт хэлбэрээр шууд, R2 дээрх шинийг богино
+ * хугацааны гарын үсэгтэй холбоосоор — хөтөч R2-оос шууд татна, сервер
+ * зургийг дамжуулж ачаалал авахгүй.
+ */
+export type FileContent =
+  | { kind: "bytes"; bytes: Buffer; mime: string }
+  | { kind: "redirect"; url: string };
+
+/** R2 холбоосын хугацаа. Хөтчийн кэш үүнээс БОГИНО байх ёстой (`/api/file`). */
+export const SIGNED_URL_SECONDS = 3600;
 
 export async function readFileFor(viewer: Viewer, fileId: string): Promise<FileContent> {
   if (!(await canRead(viewer, fileId))) throw new AccessError("ЭРХГҮЙ");
@@ -184,7 +218,13 @@ export async function readFileFor(viewer: Viewer, fileId: string): Promise<FileC
     .limit(1);
   if (!row) throw new AccessError("ЭРХГҮЙ");
 
-  return { bytes: await readFile(pathFor(row.storageKey)), mime: row.mime };
+  if (isR2Key(row.storageKey)) {
+    return {
+      kind: "redirect",
+      url: await signedUrl(objectKeyOf(row.storageKey), SIGNED_URL_SECONDS),
+    };
+  }
+  return { kind: "bytes", bytes: await readFile(pathFor(row.storageKey)), mime: row.mime };
 }
 
 /**
@@ -311,7 +351,11 @@ export async function deleteFile(fileId: string): Promise<void> {
     .limit(1);
   if (!row) return;
 
-  await unlink(pathFor(row.storageKey)).catch(() => {});
+  if (isR2Key(row.storageKey)) {
+    await r2Delete(objectKeyOf(row.storageKey)).catch(() => {});
+  } else {
+    await unlink(pathFor(row.storageKey)).catch(() => {});
+  }
   await db.delete(files).where(eq(files.id, fileId));
 }
 

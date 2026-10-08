@@ -18,6 +18,7 @@
     "school:create:prod": "node --env-file=.env.local scripts/run-prod.mjs scripts/create-school.ts"
   },
   "dependencies": {
+    "aws4fetch": "^1.0.20",
     "drizzle-orm": "^0.45.2",
     "jose": "^6.2.12",
     "lucide-react": "^1.47.0",

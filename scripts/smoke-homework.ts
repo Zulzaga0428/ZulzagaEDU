@@ -128,12 +128,24 @@ import {
   unreadCount,
 } from "../src/server/thread/service";
 import {
+
   cancelIncentive,
   enrollTeacher,
   markPaid,
   myIncentive,
   schoolIncentives,
 } from "../src/server/incentive/service";
+
+/**
+ * Зургийн байт. Smoke нь R2-гүйгээр (диск дээр) ажилладаг — `.env.local`-д
+ * R2-ийн түлхүүр байхгүй. Хэрэв хэн нэгэн R2-тэй гүйлгэвэл чимээгүй тэнцэх
+ * биш, ил унах ёстой: эрхийн шалгалт хэвээр ч байт энд ирэхгүй.
+ */
+function bytesOf(file: Awaited<ReturnType<typeof readFileFor>>): Buffer {
+  if (file.kind !== "bytes") throw new Error("Smoke нь диск горимд ажиллах ёстой (R2 түлхүүрийг арилга).");
+  return file.bytes;
+}
+
 
 let passed = 0;
 let failed = 0;
@@ -869,10 +881,10 @@ async function main() {
   console.log();
   console.log("35. Зураг харах эрх");
   const byOwner = await readFileFor(s0, shot.id);
-  check("эзэн нь харав", byOwner.bytes.length === png.length);
+  check("эзэн нь харав", bytesOf(byOwner).length === png.length);
 
   const teacherSees = await readFileFor(asTeacher, shot.id);
-  check("ангийн багш харав", teacherSees.bytes.length === png.length);
+  check("ангийн багш харав", bytesOf(teacherSees).length === png.length);
 
   await refuses("өөр ангийн багш харах", () => readFileFor(asTeacher2, shot.id));
   await refuses("хамаагүй сурагч харах", () => readFileFor(s1, shot.id));
@@ -886,7 +898,7 @@ async function main() {
   if (parentOfOwner.length > 0) {
     const pv: Viewer = { userId: parentOfOwner[0].id, schoolId: school.id, role: "PARENT" };
     const seen = await readFileFor(pv, shot.id);
-    check("эцэг эх нь харав", seen.bytes.length === png.length);
+    check("эцэг эх нь харав", bytesOf(seen).length === png.length);
   }
 
   await deleteFile(shot.id);
@@ -963,10 +975,10 @@ async function main() {
     check("зураг хавсрав", (await homeworkFiles(hwB)).includes(board.id));
 
     // Ангийн БҮХ хүн харна — энэ нь хүүхдийн дэвтрийн зурагтай ЭСРЭГ дүрэм.
-    check("багш өөрөө харав", (await readFileFor(asTeacher, board.id)).bytes.length > 0);
-    check("ангийн сурагч харав", (await readFileFor(s0, board.id)).bytes.length > 0);
-    check("өөр сурагч ч харав", (await readFileFor(s1, board.id)).bytes.length > 0);
-    check("эцэг эх харав", (await readFileFor(parent, board.id)).bytes.length > 0);
+    check("багш өөрөө харав", bytesOf(await readFileFor(asTeacher, board.id)).length > 0);
+    check("ангийн сурагч харав", bytesOf(await readFileFor(s0, board.id)).length > 0);
+    check("өөр сурагч ч харав", bytesOf(await readFileFor(s1, board.id)).length > 0);
+    check("эцэг эх харав", bytesOf(await readFileFor(parent, board.id)).length > 0);
 
     // Харин эрхлэгч ангийн агуулга харахгүй — PERMISSIONS-ийн шугам хэвээр.
     await refuses("эрхлэгч самбарын зураг харах", () => readFileFor(asManager, board.id));
