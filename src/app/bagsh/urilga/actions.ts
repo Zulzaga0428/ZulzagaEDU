@@ -5,7 +5,7 @@ import { requireViewer } from "@/server/auth/access";
 import QRCode from "qrcode";
 import { createParentInvite, decideGuardian } from "@/server/invite/service";
 import { addStudent, resetStudentPin } from "@/server/students/service";
-import { notifyGuardianApproved } from "@/server/notify/push";
+import { inBackground, notifyGuardianApproved } from "@/server/notify/push";
 
 /**
  * Урилгын линк ба QR-ыг үүсгэнэ.
@@ -33,12 +33,23 @@ export async function makeParentInvite(
   return { path, svg, expiresAt: expiresAt.toISOString() };
 }
 
-export async function approveGuardianAction(formData: FormData): Promise<void> {
+/**
+ * ⚠️ Хариу буцаана (`docs/DECISIONS.md` §24). 2026-10-09-нд хэмжихэд багш
+ * «Батлах» дараад 9 секунд хүлээсэн ч хүсэлт жагсаалтад хэвээр, товч хэвээр
+ * байв — хадгалагдсан ч багш мэдэхгүй. Энэ нь эцэг эхийг ангид нэгтгэх
+ * гинжний СҮҮЛИЙН холбоо: тэр хооронд эцэг эх «хүлээж байна» дээр сууж байна.
+ */
+export type DecideResult = { ok: true; approved: boolean } | { ok: false; error: string };
+
+export async function approveGuardianAction(
+  _prev: DecideResult | null,
+  formData: FormData,
+): Promise<DecideResult> {
   const viewer = await requireViewer();
   const id = formData.get("guardianId");
   const decision = formData.get("decision");
   if (typeof id !== "string" || (decision !== "ACTIVE" && decision !== "REJECTED")) {
-    throw new Error("Дутуу утга.");
+    return { ok: false, error: "Хүсэлт танигдсангүй. Хуудсыг дахин нээнэ үү." };
   }
 
   const result = await decideGuardian(viewer, id, decision);
@@ -51,19 +62,24 @@ export async function approveGuardianAction(formData: FormData): Promise<void> {
     багш өөрөө ярих нь зөв.
   */
   if (result.approved) {
-    try {
-      await notifyGuardianApproved({
+    // Багшийн хүлээлтийн ард — `inBackground` (§24).
+    inBackground(
+      notifyGuardianApproved({
         schoolId: viewer.schoolId,
         parentUserId: result.parentUserId,
         studentName: result.studentName,
-      });
-    } catch (err) {
-      console.error("Эцэг эхэд мэдэгдэхэд алдаа:", err);
-    }
+      }),
+      "эцэг эх батлагдсан",
+    );
   }
 
-  revalidatePath("/bagsh/urilga");
-  revalidatePath("/bagsh");
+  /*
+    `revalidatePath` зориуд байхгүй: дуудвал хүсэлтийн карт хариутай зэрэг
+    алга болж, багш «баталсан уу, татгалзсан уу» гэдгээ харахгүй үлддэг
+    (2026-10-09-нд хэмжсэн). Хуудас `force-dynamic` тул товч өөрөө хариугаа
+    үзүүлсний дараа шинэчилнэ.
+  */
+  return { ok: true, approved: result.approved };
 }
 
 /**

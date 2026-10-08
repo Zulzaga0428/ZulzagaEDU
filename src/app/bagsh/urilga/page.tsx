@@ -9,7 +9,7 @@ import { AddStudent, ResetPin } from "@/components/student-credentials";
 import { myClasses } from "@/server/homework/service";
 import { classStudents, pendingGuardians } from "@/server/invite/service";
 import { startThreadAction } from "@/app/yaria/actions";
-import { approveGuardianAction } from "./actions";
+import { GuardianDecision } from "@/components/guardian-decision";
 
 export const dynamic = "force-dynamic";
 
@@ -68,28 +68,7 @@ export default async function InvitePage() {
                     ⚠️ Энэ бол хүүхдийн өгөгдлийн гол хаалга. Батлах хүртэл
                     эцэг эх юу ч харахгүй. Танихгүй хүн бол ТАТГАЛЗ.
                   */}
-                  <div className="mt-3 flex gap-2">
-                    <form action={approveGuardianAction} className="flex-1">
-                      <input type="hidden" name="guardianId" value={p.id} />
-                      <input type="hidden" name="decision" value="ACTIVE" />
-                      <button
-                        type="submit"
-                        className="w-full rounded-xl bg-brand px-4 py-2.5 text-sm font-bold text-brand-ink hover:bg-brand-strong"
-                      >
-                        Батлах
-                      </button>
-                    </form>
-                    <form action={approveGuardianAction}>
-                      <input type="hidden" name="guardianId" value={p.id} />
-                      <input type="hidden" name="decision" value="REJECTED" />
-                      <button
-                        type="submit"
-                        className="rounded-xl border border-line px-4 py-2.5 text-sm font-bold text-ink-soft hover:border-accent hover:text-accent"
-                      >
-                        Татгалзах
-                      </button>
-                    </form>
-                  </div>
+                  <GuardianDecision guardianId={p.id} />
                 </Card>
               )),
             )}
