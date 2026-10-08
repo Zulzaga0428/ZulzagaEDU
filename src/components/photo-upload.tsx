@@ -1,7 +1,8 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Camera } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Camera, Star } from "lucide-react";
 import { uploadNotebookPhoto } from "@/app/suragch/upload-actions";
 
 /**
@@ -40,8 +41,11 @@ async function shrink(file: File): Promise<Blob> {
 
 export function PhotoUpload({ homeworkId }: { homeworkId: string }) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** Илгээлт бүтсэн бол олгосон оноо — шагналын мөрийг харуулна. */
+  const [gained, setGained] = useState<number | null>(null);
 
   async function onPick(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -54,13 +58,35 @@ export function PhotoUpload({ homeworkId }: { homeworkId: string }) {
       const data = new FormData();
       data.set("homeworkId", homeworkId);
       data.set("photo", new File([small], "devter.jpg", { type: "image/jpeg" }));
-      await uploadNotebookPhoto(data);
+      const res = await uploadNotebookPhoto(data);
+      if (!res.ok) {
+        setError(res.error);
+        return;
+      }
+      /*
+        Шагналыг эхэлж харуулж, ДАРАА нь шинэчилнэ — эс бөгөөс карт тэр дор
+        «Хийсэн» рүү нүүж, хүүхэд «+15»-аа хэзээ ч харахгүй.
+      */
+      setGained(res.gained);
+      setTimeout(() => router.refresh(), 1400);
     } catch {
-      setError("Илгээхэд алдаа гарлаа. Дахин оролдоно уу.");
+      setError("Илгээхэд алдаа гарлаа. Интернэтээ шалгаад дахин оролдоно уу.");
     } finally {
       setBusy(false);
       if (inputRef.current) inputRef.current.value = "";
     }
+  }
+
+  if (gained !== null) {
+    return (
+      <div
+        role="status"
+        className="flex w-full items-center justify-center gap-2 rounded-2xl bg-role-parent px-4 py-4 text-base font-extrabold text-dot-parent"
+      >
+        <Star className="h-5 w-5 fill-current" strokeWidth={2.4} />
+        {gained > 0 ? `+${gained} оноо!` : "Зураг илгээгдлээ"}
+      </div>
+    );
   }
 
   return (

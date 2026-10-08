@@ -9,7 +9,7 @@ import { myHomework } from "@/server/homework/service";
 import { groupByDue } from "@/server/homework/grouping";
 import { formatDueUb } from "@/server/homework/time";
 import { myAttachments } from "@/server/files/storage";
-import { undoDoneAction } from "../actions";
+import { UndoButton } from "@/components/student-done-buttons";
 
 export const dynamic = "force-dynamic";
 
@@ -105,15 +105,7 @@ export default async function StudentHomeworkPage() {
                 )}
 
                 {undoable.has(h.id) && (
-                  <form action={undoDoneAction} className="mt-2">
-                    <input type="hidden" name="homeworkId" value={h.id} />
-                    <button
-                      type="submit"
-                      className="text-xs font-bold text-ink-faint underline hover:text-accent"
-                    >
-                      Андуурч дарсан — буцаах
-                    </button>
-                  </form>
+                  <UndoButton homeworkId={h.id} />
                 )}
               </Card>
             ))}

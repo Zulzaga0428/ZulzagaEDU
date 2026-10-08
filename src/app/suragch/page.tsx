@@ -13,7 +13,7 @@ import { groupByDue, studentHeadline } from "@/server/homework/grouping";
 import { formatDueUb } from "@/server/homework/time";
 import { lessonName, lessonsToday, myWeek, nextSchoolDay } from "@/server/schedule/service";
 import { myAnnouncements } from "@/server/announce/service";
-import { undoDoneAction } from "./actions";
+import { UndoButton } from "@/components/student-done-buttons";
 import { StudentTask } from "@/components/student-task";
 import { myAttachments } from "@/server/files/storage";
 import { myPoints, pointsEnabled } from "@/server/points/service";
@@ -232,15 +232,7 @@ export default async function StudentHome() {
                   зураг илгээсэн бол гарахгүй — тэр хоёр нь баталгаа.
                 */}
                 {undoable.has(h.id) && (
-                  <form action={undoDoneAction} className="mt-2">
-                    <input type="hidden" name="homeworkId" value={h.id} />
-                    <button
-                      type="submit"
-                      className="text-xs font-bold text-ink-faint underline hover:text-accent"
-                    >
-                      Андуурч дарсан — буцаах
-                    </button>
-                  </form>
+                  <UndoButton homeworkId={h.id} />
                 )}
                 {h.teacherNote && (
                   <p className="mt-2 rounded-2xl bg-surface-soft px-4 py-3 text-sm text-ink">

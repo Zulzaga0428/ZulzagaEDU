@@ -1,7 +1,7 @@
 import { BookOpen, Calculator, NotebookPen } from "lucide-react";
 import { Card, IconBox } from "@/components/ui";
 import { PhotoUpload } from "@/components/photo-upload";
-import { markDoneAction } from "@/app/suragch/actions";
+import { DoneButton } from "@/components/student-done-buttons";
 import type { StudentHomeworkRow } from "@/server/homework/service";
 
 /**
@@ -83,15 +83,7 @@ export function StudentTask({
         <PhotoUpload homeworkId={h.id} />
       </div>
 
-      <form action={markDoneAction} className="mt-2">
-        <input type="hidden" name="homeworkId" value={h.id} />
-        <button
-          type="submit"
-          className="w-full rounded-2xl bg-brand px-4 py-4 text-base font-extrabold text-brand-ink hover:bg-brand-strong"
-        >
-          Зураггүй хийчихлээ
-        </button>
-      </form>
+      <DoneButton homeworkId={h.id} />
     </Card>
   );
 }

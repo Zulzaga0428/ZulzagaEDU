@@ -61,19 +61,24 @@ export async function awardForHomework(
   viewer: Viewer,
   homeworkId: string,
   reason: Reason,
-): Promise<void> {
-  if (!pointsEnabled()) return;
-  if (viewer.role !== "STUDENT") return;
+): Promise<number> {
+  /*
+    Үнэхээр олгосон оноогоо буцаана — 0 бол олгоогүй (туг унтраалттай,
+    хугацаа өнгөрсөн, аль хэдийн авсан). Хүүхдийн дэлгэц «+10» гэж
+    худлаа баярлуулахгүйн тулд энэ тоог ашиглана.
+  */
+  if (!pointsEnabled()) return 0;
+  if (viewer.role !== "STUDENT") return 0;
 
   const [hw] = await db
     .select({ dueAt: homework.dueAt })
     .from(homework)
     .where(and(eq(homework.id, homeworkId), eq(homework.schoolId, viewer.schoolId)))
     .limit(1);
-  if (!hw) return;
-  if (hw.dueAt.getTime() < Date.now()) return;
+  if (!hw) return 0;
+  if (hw.dueAt.getTime() < Date.now()) return 0;
 
-  await db
+  const [row] = await db
     .insert(pointsLedger)
     .values({
       schoolId: viewer.schoolId,
@@ -87,7 +92,9 @@ export async function awardForHomework(
       reason,
       homeworkId,
     })
-    .onConflictDoNothing();
+    .onConflictDoNothing()
+    .returning({ points: pointsLedger.points });
+  return row?.points ?? 0;
 }
 
 /**
