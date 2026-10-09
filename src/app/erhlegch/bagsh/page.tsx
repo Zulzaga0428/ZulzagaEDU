@@ -223,7 +223,12 @@ export default async function ManageTeachersPage() {
               defaultValue="3"
               className="w-28 shrink-0 rounded-xl border border-line bg-surface px-3 py-3 text-sm text-ink"
             >
-              {[1, 2, 3, 4, 5].map((g) => (
+              {/*
+                1–12 бүх анги (Zulzaga, 2026-10-09): захирал хагас сургуульд систем
+                авахгүй. Сервер (`school/manage.ts`) аль хэдийн 1–12-ыг зөвшөөрдөг
+                байсан — зөвхөн энэ сонголт 5-аар зогсдог байв.
+              */}
+              {Array.from({ length: 12 }, (_, i) => i + 1).map((g) => (
                 <option key={g} value={g}>
                   {g}-р анги
                 </option>
