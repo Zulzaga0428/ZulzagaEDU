@@ -12,7 +12,7 @@ import {
   UserPlus,
   Users,
 } from "lucide-react";
-import { getViewer } from "@/server/auth/access";
+import { getViewer, isParentContact } from "@/server/auth/access";
 import { AppShell } from "@/components/app-shell";
 import { Bar, Card, Empty, FeatureCard, Row, SectionLabel, StatTile } from "@/components/ui";
 import { listClassHomework, myClasses, strugglingStudents } from "@/server/homework/service";
@@ -33,6 +33,8 @@ export default async function TeacherHome() {
       klass: c,
       items: await listClassHomework(viewer, c.id),
       struggling: await strugglingStudents(viewer, c.id),
+      // «Ярих» — зөвхөн анги удирдсан багшид (`isParentContact`).
+      parentContact: await isParentContact(viewer.userId, c.id, viewer.schoolId),
     })),
   );
 
@@ -121,7 +123,7 @@ export default async function TeacherHome() {
           хуваарилсны дараа даалгавар өгөх, хуваарь оруулах боломжтой болно.
         </Empty>
       ) : (
-        perClass.map(({ klass, items, struggling }) => (
+        perClass.map(({ klass, items, struggling, parentContact }) => (
           <section key={klass.id}>
             <SectionLabel>
               {klass.name} анги · {klass.grade}-р анги
@@ -150,15 +152,17 @@ export default async function TeacherHome() {
                           {st.total} даалгавраас {st.done} нь хийгдсэн
                         </span>
                       </span>
-                      <form action={startThreadAction}>
-                        <input type="hidden" name="studentUserId" value={st.studentUserId} />
-                        <button
-                          type="submit"
-                          className="shrink-0 rounded-lg border border-line px-3 py-1.5 text-xs font-bold text-brand hover:border-brand"
-                        >
-                          Ярих
-                        </button>
-                      </form>
+                      {parentContact && (
+                        <form action={startThreadAction}>
+                          <input type="hidden" name="studentUserId" value={st.studentUserId} />
+                          <button
+                            type="submit"
+                            className="shrink-0 rounded-lg border border-line px-3 py-1.5 text-xs font-bold text-brand hover:border-brand"
+                          >
+                            Ярих
+                          </button>
+                        </form>
+                      )}
                     </li>
                   ))}
                 </ul>

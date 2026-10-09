@@ -434,8 +434,20 @@ async function pushedRecently(userId: string, kind: "GUARDIAN_PENDING" | "THREAD
   return Boolean(row);
 }
 
-/** Тухайн ангийг заадаг багш нар. */
-async function teachersOfClass(classId: string): Promise<string[]> {
+/**
+ * Эцэг эхтэй холбоотой мэдэгдэл авах багш(ууд).
+ *
+ * Анги удирдсан багш тавигдсан бол ЗӨВХӨН тэр — эс бөгөөс 6–12-р ангийн
+ * эцэг эхийн нэг мессеж 10+ хичээлийн багшийн утсыг дуугаргана (Zulzaga,
+ * 2026-10-10). Тавигдаагүй бол ангийн бүх багш өмнөх шигээ. Дүрэм нь
+ * `isParentContact`-тэй ИЖИЛ байх ёстой — эрхгүй хүнд мэдэгдэл явж болохгүй.
+ */
+async function parentContactsOfClass(classId: string): Promise<string[]> {
+  const [klass] = await db
+    .select({ homeroom: classes.homeroomTeacherId })
+    .from(classes)
+    .where(eq(classes.id, classId))
+    .limit(1);
   const rows = await db
     .select({ userId: classMembers.userId })
     .from(classMembers)
@@ -446,7 +458,9 @@ async function teachersOfClass(classId: string): Promise<string[]> {
         eq(classMembers.status, "ACTIVE"),
       ),
     );
-  return rows.map((r) => r.userId);
+  const teachers = rows.map((r) => r.userId);
+  if (klass?.homeroom && teachers.includes(klass.homeroom)) return [klass.homeroom];
+  return teachers;
 }
 
 /**
@@ -461,7 +475,7 @@ export async function notifyGuardianPending(args: {
   studentName: string;
   parentName: string;
 }): Promise<{ recipients: number }> {
-  const teachers = await teachersOfClass(args.classId);
+  const teachers = await parentContactsOfClass(args.classId);
   if (teachers.length === 0) return { recipients: 0 };
 
   const quiet = await Promise.all(teachers.map((id) => pushedRecently(id, "GUARDIAN_PENDING")));
@@ -506,7 +520,7 @@ export async function notifyThreadMessage(args: {
   authorUserId: string;
   preview: string;
 }): Promise<{ recipients: number }> {
-  const teachers = await teachersOfClass(args.classId);
+  const teachers = await parentContactsOfClass(args.classId);
   const parents = await db
     .selectDistinct({ userId: guardians.parentUserId })
     .from(guardians)

@@ -20,13 +20,25 @@ export const classes = pgTable(
       .references(() => schools.id, { onDelete: "cascade" }),
     /** «3А» */
     name: text("name").notNull(),
-    /** 1–5 */
+    /** 1–12 (2026-10-09-нөөс; өмнө нь 1–5) */
     grade: integer("grade").notNull(),
     /** «2026-2027» */
     academicYear: text("academic_year").notNull(),
     createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     archivedAt: timestamp("archived_at", { withTimezone: true }),
+    /**
+     * Анги удирдсан багш — эцэг эхтэй холбоотой БҮХ зүйл түүнд (Zulzaga,
+     * 2026-10-10): яриа, хүсэлт батлах, QR урилга, мэдэгдэл. Хичээлийн багш нар
+     * зөвхөн даалгавар өгнө. 6–12-р ангид 10+ багш байх тул эцэг эхийн нэг
+     * мессеж 10 утас дуугаргахгүйн тулд.
+     *
+     * `null` бол ангийн БҮХ багш өмнөх шигээ — 1–5-р ангид ихэвчлэн ганц багш
+     * тул эрхлэгч сонгох хүртэл юу ч өөрчлөгдөхгүй.
+     */
+    homeroomTeacherId: uuid("homeroom_teacher_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
   },
   (t) => [
     uniqueIndex("classes_school_year_name_key").on(t.schoolId, t.academicYear, t.name),

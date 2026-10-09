@@ -129,6 +129,31 @@ export async function teachesClass(
   return Boolean(row);
 }
 
+/**
+ * Энэ багш тухайн ангийн ЭЦЭГ ЭХТЭЙ харилцах эрхтэй юу.
+ *
+ * Анги удирдсан багш тавигдсан бол ЗӨВХӨН тэр (Zulzaga, 2026-10-10): эцэг
+ * эхтэй холбоотой бүх зүйл — яриа, хүсэлт батлах, QR урилга, мэдэгдэл — нэг
+ * хүнд. 6–12-р ангид 10+ хичээлийн багш байх тул эцэг эхийн нэг мессеж бүгдийн
+ * утсыг дуугаргахгүйн тулд. Хичээлийн багш даалгавраа өгсөөр байна —
+ * даалгаврын эрх `teachesClass` хэвээр.
+ *
+ * Тавигдаагүй (`null`) бол ангийн бүх багш өмнөх шигээ.
+ */
+export async function isParentContact(
+  userId: string,
+  classId: string,
+  schoolId: string,
+): Promise<boolean> {
+  if (!(await teachesClass(userId, classId, schoolId))) return false;
+  const [row] = await db
+    .select({ homeroom: classes.homeroomTeacherId })
+    .from(classes)
+    .where(eq(classes.id, classId))
+    .limit(1);
+  return !row?.homeroom || row.homeroom === userId;
+}
+
 export async function studiesIn(
   userId: string,
   classId: string,

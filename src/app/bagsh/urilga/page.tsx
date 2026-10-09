@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { KeyRound, MessageSquare, UserCheck, UserPlus, Users } from "lucide-react";
-import { getViewer } from "@/server/auth/access";
+import { getViewer, isParentContact } from "@/server/auth/access";
 import { AppShell } from "@/components/app-shell";
 import { Card, Empty, IconBox, SectionLabel } from "@/components/ui";
 import { InviteButton } from "@/components/invite-button";
@@ -30,6 +30,11 @@ export default async function InvitePage() {
       klass: c,
       students: await classStudents(viewer, c.id),
       pending: await pendingGuardians(viewer, c.id),
+      /*
+        Эцэг эхтэй холбоотой товчнууд (QR урилга, «ярих») — зөвхөн анги удирдсан
+        багшид (`isParentContact`). Хичээлийн багш сурагчдаа харсаар байна.
+      */
+      parentContact: await isParentContact(viewer.userId, c.id, viewer.schoolId),
     })),
   );
 
@@ -78,11 +83,19 @@ export default async function InvitePage() {
 
       {data.length === 0 && <Empty icon={Users}>Танд хариуцсан анги алга байна.</Empty>}
 
-      {data.map(({ klass, students }) => (
+      {data.map(({ klass, students, parentContact }) => (
         <section key={klass.id}>
           <SectionLabel>
             {klass.name} анги · {students.length} сурагч
           </SectionLabel>
+
+          {!parentContact && (
+            // QR, «ярих» яагаад алга болсныг хичээлийн багш ойлгох ёстой.
+            <p className="mb-3 rounded-2xl border border-line bg-surface-soft px-4 py-3 text-sm text-ink-soft">
+              Энэ ангийн эцэг эхтэй <b>анги удирдсан багш</b> харилцана. Та даалгавраа
+              өгч, шалгасаар байна.
+            </p>
+          )}
 
           <div className="mb-3">
             <AddStudent classId={klass.id} className={klass.name} />
@@ -104,14 +117,16 @@ export default async function InvitePage() {
                       )}
                     </p>
                   </div>
-                  <InviteButton classId={klass.id} studentId={s.id} studentName={s.name} />
+                  {parentContact && (
+                    <InviteButton classId={klass.id} studentId={s.id} studentName={s.name} />
+                  )}
                 </div>
 
                 {/*
                   Эцэг эх холбогдсон байж л яриа утгатай. Холбогдоогүй бол
                   хэнд ч очихгүй тул товч гаргахгүй (`DECISIONS.md` §17).
                 */}
-                {s.guardianCount > 0 && (
+                {parentContact && s.guardianCount > 0 && (
                   <form action={startThreadAction} className="mt-2">
                     <input type="hidden" name="studentUserId" value={s.id} />
                     <button

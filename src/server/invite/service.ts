@@ -14,7 +14,7 @@ import {
   schools,
   users,
 } from "@/server/db/schema";
-import { AccessError, teachesClass, type Viewer } from "@/server/auth/access";
+import { AccessError, teachesClass, type Viewer, isParentContact } from "@/server/auth/access";
 import { setAdultCredentials } from "@/server/auth/credentials";
 import { isWeakPin, verifyPin } from "@/server/auth/pin";
 
@@ -48,7 +48,8 @@ export async function createParentInvite(
   if (viewer.role !== "TEACHER" && viewer.role !== "ACADEMIC_MANAGER") {
     throw new AccessError("ЭРХГҮЙ");
   }
-  if (viewer.role === "TEACHER" && !(await teachesClass(viewer.userId, classId, viewer.schoolId))) {
+  // Эцэг эхийг урих нь анги удирдсан багшийнх (`isParentContact`).
+  if (viewer.role === "TEACHER" && !(await isParentContact(viewer.userId, classId, viewer.schoolId))) {
     throw new AccessError("ЭРХГҮЙ");
   }
 
@@ -272,6 +273,12 @@ export async function pendingGuardians(
   if (!(await teachesClass(viewer.userId, classId, viewer.schoolId))) {
     throw new AccessError("ЭРХГҮЙ");
   }
+  /*
+    Хичээлийн багш хүсэлт хардаггүй — анги удирдсан багшийнх. Алдаа шидэхгүй,
+    хоосон буцаана: тэр багш «Сурагч ба эцэг эх» хуудсыг нээсээр байна
+    (сурагчдын жагсаалт хэрэгтэй), зүгээр л батлах хэсэг нь гарахгүй.
+  */
+  if (!(await isParentContact(viewer.userId, classId, viewer.schoolId))) return [];
 
   // Нэг хүснэгтээс хоёр талыг татах тул alias хэрэгтэй.
   const parent = alias(users, "parent");
@@ -350,7 +357,8 @@ export async function decideGuardian(
   if (!member) throw new AccessError("ЭРХГҮЙ");
   if (
     viewer.role === "TEACHER" &&
-    !(await teachesClass(viewer.userId, member.classId, viewer.schoolId))
+    // Батлах нь анги удирдсан багшийнх (`isParentContact`).
+    !(await isParentContact(viewer.userId, member.classId, viewer.schoolId))
   ) {
     throw new AccessError("ЭРХГҮЙ");
   }

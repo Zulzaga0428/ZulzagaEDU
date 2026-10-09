@@ -217,6 +217,54 @@ export async function assignTeacher(
   });
 }
 
+/**
+ * Анги удирдсан багшийг сонгоно (Zulzaga, 2026-10-10). `null` бол арилгана —
+ * тэгвэл ангийн бүх багш эцэг эхтэй өмнөх шигээ харилцана.
+ *
+ * Зөвхөн ТЭР ангид хуваарилагдсан идэвхтэй багш байж болно — эс бөгөөс
+ * эцэг эхийн яриа ангид байхгүй хүн рүү очно.
+ */
+export async function setHomeroom(
+  viewer: Viewer,
+  classId: string,
+  teacherUserId: string | null,
+): Promise<void> {
+  requireManager(viewer);
+
+  const [klass] = await db
+    .select({ id: classes.id })
+    .from(classes)
+    .where(and(eq(classes.id, classId), eq(classes.schoolId, viewer.schoolId)))
+    .limit(1);
+  if (!klass) throw new AccessError("ЭРХГҮЙ");
+
+  if (teacherUserId) {
+    const [member] = await db
+      .select({ id: classMembers.id })
+      .from(classMembers)
+      .where(
+        and(
+          eq(classMembers.classId, classId),
+          eq(classMembers.userId, teacherUserId),
+          eq(classMembers.role, "TEACHER"),
+          eq(classMembers.status, "ACTIVE"),
+        ),
+      )
+      .limit(1);
+    if (!member) throw new Error("Энэ багш энэ ангид хуваарилагдаагүй байна.");
+  }
+
+  await db.update(classes).set({ homeroomTeacherId: teacherUserId }).where(eq(classes.id, classId));
+  await db.insert(auditLog).values({
+    schoolId: viewer.schoolId,
+    actorUserId: viewer.userId,
+    action: "HOMEROOM_SET",
+    targetType: "class",
+    targetId: classId,
+    meta: { teacherUserId },
+  });
+}
+
 export async function unassignTeacher(
   viewer: Viewer,
   classId: string,
@@ -241,6 +289,17 @@ export async function unassignTeacher(
         eq(classMembers.role, "TEACHER"),
       ),
     );
+
+  /*
+    Хасагдсан багш анги удирдсан багш байсан бол тэмдгийг арилгана. Эс
+    бөгөөс эцэг эхийн яриа, хүсэлт ангид байхгүй хүнд «хадгалагдаж», ангийн
+    үлдсэн багш нарын хэн нь ч харж чадахгүй болно. `null` болмогц бүх багш
+    өмнөх шигээ хардаг (`isParentContact`).
+  */
+  await db
+    .update(classes)
+    .set({ homeroomTeacherId: null })
+    .where(and(eq(classes.id, classId), eq(classes.homeroomTeacherId, teacherUserId)));
 
   await db.insert(auditLog).values({
     schoolId: viewer.schoolId,
@@ -296,6 +355,9 @@ export type ManagedClass = {
   grade: number;
   students: number;
   teacherNames: string;
+  /** Ангид хуваарилагдсан идэвхтэй багш нар — анги удирдсан багш сонгоход. */
+  teachers: { id: string; name: string }[];
+  homeroomTeacherId: string | null;
 };
 
 export async function listClasses(viewer: Viewer): Promise<ManagedClass[]> {
@@ -315,6 +377,12 @@ export async function listClasses(viewer: Viewer): Promise<ManagedClass[]> {
         from class_members cm join users u on u.id = cm.user_id
         where cm.class_id = classes.id and cm.role = 'TEACHER' and cm.status = 'ACTIVE'
       ), '')`,
+      teachers: sql<{ id: string; name: string }[]>`coalesce((
+        select json_agg(json_build_object('id', u.id, 'name', u.name) order by u.name)
+        from class_members cm join users u on u.id = cm.user_id
+        where cm.class_id = classes.id and cm.role = 'TEACHER' and cm.status = 'ACTIVE'
+      ), '[]'::json)`,
+      homeroomTeacherId: classes.homeroomTeacherId,
     })
     .from(classes)
     .where(and(eq(classes.schoolId, viewer.schoolId), isNull(classes.archivedAt)))

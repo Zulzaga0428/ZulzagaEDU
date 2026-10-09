@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { db } from "@/server/db";
 import {
   classMembers,
@@ -9,12 +9,7 @@ import {
   threads,
   users,
 } from "@/server/db/schema";
-import {
-  AccessError,
-  childrenOf,
-  teachesClass,
-  type Viewer,
-} from "@/server/auth/access";
+import { AccessError, childrenOf, isParentContact, type Viewer } from "@/server/auth/access";
 
 /**
  * Багш ↔ эцэг эхийн яриа (`docs/DECISIONS.md` §17).
@@ -47,7 +42,8 @@ async function canSee(viewer: Viewer, threadId: string): Promise<boolean> {
   if (!row || row.schoolId !== viewer.schoolId) return false;
 
   if (viewer.role === "TEACHER") {
-    return teachesClass(viewer.userId, row.classId, viewer.schoolId);
+    // Анги удирдсан багш тавигдсан бол зөвхөн тэр (`isParentContact`).
+    return isParentContact(viewer.userId, row.classId, viewer.schoolId);
   }
 
   if (viewer.role === "PARENT") {
@@ -242,7 +238,7 @@ export async function startThreadForChild(
         ),
       )
       .limit(1);
-    if (!member || !(await teachesClass(viewer.userId, member.classId, viewer.schoolId))) {
+    if (!member || !(await isParentContact(viewer.userId, member.classId, viewer.schoolId))) {
       throw new AccessError("ЭРХГҮЙ");
     }
   } else {
@@ -342,6 +338,8 @@ export async function teacherThreads(viewer: Viewer): Promise<ThreadSummary[]> {
         eq(classMembers.role, "TEACHER"),
         eq(classMembers.status, "ACTIVE"),
         eq(classes.schoolId, viewer.schoolId),
+        // Анги удирдсан багш тавигдсан ангид — зөвхөн тэр (`isParentContact`).
+        or(isNull(classes.homeroomTeacherId), eq(classes.homeroomTeacherId, viewer.userId)),
       ),
     );
 

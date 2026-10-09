@@ -25,7 +25,7 @@ import {
   subjects,
   users,
 } from "../src/server/db/schema";
-import type { Viewer } from "../src/server/auth/access";
+import { isParentContact, type Viewer } from "../src/server/auth/access";
 import {
   checkAllDone,
   checkSubmission,
@@ -72,6 +72,7 @@ import {
   listClasses,
   listTeachers,
   resetTeacherPin,
+  setHomeroom,
   unassignTeacher,
 } from "../src/server/school/manage";
 import { signIn, issueStudentCredentials } from "../src/server/auth/credentials";
@@ -1848,6 +1849,72 @@ async function main() {
     await db.update(schools).set({ address: null, phone: null, website: null, facebook: null, logoFileId: null, photoFileId: null }).where(eq(schools.id, school.id));
     await deleteFile(logo.id);
     await deleteFile(notebook.id);
+  }
+
+
+  console.log();
+  console.log("52. Анги удирдсан багш — эцэг эхтэй зөвхөн тэр харилцана");
+  {
+    // Хоёр дахь багш энэ ангид хичээл заадаг болно.
+    await assignTeacher(asManager, klass.id, teacher2.id);
+    const tid = await startThreadForChild(asTeacher, link.childId);
+
+    check("сонгоогүй үед хичээлийн багш ч холбогдоно (хуучин хэвээр)",
+      await isParentContact(teacher2.id, klass.id, school.id));
+
+    await setHomeroom(asManager, klass.id, teacher.id);
+    check("анги удирдсан багш холбогдоно", await isParentContact(teacher.id, klass.id, school.id));
+    check("хичээлийн багш холбогдохгүй", !(await isParentContact(teacher2.id, klass.id, school.id)));
+
+    await refuses("хичээлийн багш яриа нээх", () => openThread(asTeacher2, tid));
+    await refuses("хичээлийн багш яриа эхлүүлэх", () => startThreadForChild(asTeacher2, link.childId));
+    await refuses("хичээлийн багш QR урилга гаргах", () =>
+      createParentInvite(asTeacher2, klass.id, students[0].id));
+    check("хичээлийн багшийн ярианы жагсаалтад алга",
+      !(await teacherThreads(asTeacher2)).some((t) => t.id === tid));
+    check("хичээлийн багшид батлах хүсэлт харагдахгүй",
+      (await pendingGuardians(asTeacher2, klass.id)).length === 0);
+    check("анги удирдсан багш ярьсаар байна",
+      (await teacherThreads(asTeacher)).some((t) => t.id === tid));
+
+    // Эцэг эх бичихэд мэдэгдэл зөвхөн анги удирдсан багшид очно.
+    const sent = await sendMessage(parent, tid, "Анги удирдсан багшид.");
+    await db.delete(notifications).where(eq(notifications.kind, "THREAD_MESSAGE"));
+    await notifyThreadMessage({
+      schoolId: school.id,
+      threadId: sent.threadId,
+      classId: sent.classId,
+      studentUserId: sent.studentUserId,
+      studentName: sent.studentName,
+      authorUserId: parent.userId,
+      preview: sent.preview,
+    });
+    const got = async (uid: string) =>
+      (await db.select({ id: notifications.id }).from(notifications)
+        .where(and(eq(notifications.userId, uid), eq(notifications.kind, "THREAD_MESSAGE")))).length;
+    check("анги удирдсан багшид мэдэгдэл очив", (await got(teacher.id)) === 1);
+    check("хичээлийн багшид мэдэгдэл очоогүй", (await got(teacher2.id)) === 0);
+
+    // Хичээлийн багш даалгавар өгсөөр л байна.
+    const hw = await createHomework(asTeacher2, {
+      classId: klass.id,
+      subjectId: null,
+      title: "Хичээлийн багшийн даалгавар",
+      description: null,
+      dueAt: endOfDayUb(addDaysUb(todayUb(), 1)),
+    });
+    check("хичээлийн багш даалгавар өгсөөр", Boolean(hw));
+    await deleteHomework(asTeacher2, hw);
+
+    await refuses("багш өөрөө анги удирдагч сонгох", () => setHomeroom(asTeacher, klass.id, teacher.id));
+    await refuses("ангид заадаггүй багшийг сонгох", () => setHomeroom(asManager, klass.id, asNewT.userId));
+
+    // Анги удирдсан багшийг ангиас хасвал сонголт арилна — эцэг эх хаягдахгүй.
+    await setHomeroom(asManager, klass.id, teacher2.id);
+    await unassignTeacher(asManager, klass.id, teacher2.id);
+    const [after] = await db.select({ h: classes.homeroomTeacherId }).from(classes).where(eq(classes.id, klass.id));
+    check("хасахад сонголт арилав", after.h === null);
+    check("дахин бүх багш холбогдоно", await isParentContact(teacher.id, klass.id, school.id));
   }
 
   console.log(`\n${failed === 0 ? "✅" : "❌"} ${passed} зөв, ${failed} алдаа\n`);

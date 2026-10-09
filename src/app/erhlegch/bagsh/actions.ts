@@ -8,6 +8,7 @@ import {
   createClass,
   currentAcademicYear,
   resetTeacherPin,
+  setHomeroom,
   unassignTeacher,
 } from "@/server/school/manage";
 import {
@@ -110,4 +111,29 @@ export async function cancelIncentiveAction(formData: FormData): Promise<void> {
   await cancelIncentive(viewer, id);
   revalidatePath("/erhlegch/bagsh");
   revalidatePath("/bagsh");
+}
+
+export type HomeroomResult = { ok: true } | { ok: false; error: string };
+
+/**
+ * Анги удирдсан багшийг сонгоно. Хариу буцаана (`docs/DECISIONS.md` §24) —
+ * эрхлэгч «болсон уу» гэж эргэлзэхгүй.
+ */
+export async function setHomeroomAction(
+  _prev: HomeroomResult | null,
+  formData: FormData,
+): Promise<HomeroomResult> {
+  const viewer = await requireViewer();
+  const classId = formData.get("classId");
+  const teacherUserId = formData.get("teacherUserId");
+  if (typeof classId !== "string" || typeof teacherUserId !== "string") {
+    return { ok: false, error: "Анги танигдсангүй. Хуудсыг дахин нээнэ үү." };
+  }
+  try {
+    await setHomeroom(viewer, classId, teacherUserId === "" ? null : teacherUserId);
+    revalidatePath("/erhlegch/bagsh");
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : "Хадгалж чадсангүй." };
+  }
 }

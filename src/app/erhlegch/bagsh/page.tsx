@@ -5,6 +5,7 @@ import { getViewer } from "@/server/auth/access";
 import { AppShell } from "@/components/app-shell";
 import { Card, Empty, IconBox, SectionLabel } from "@/components/ui";
 import { AddTeacher, ResetTeacherPin } from "@/components/teacher-admin";
+import { HomeroomPicker } from "@/components/homeroom-picker";
 import { listClasses, listTeachers } from "@/server/school/manage";
 import {
   assignTeacherAction,
@@ -282,6 +283,14 @@ export default async function ManageTeachersPage() {
                         </form>
                       ))}
                   </div>
+                )}
+
+                {c.teachers.length > 0 && (
+                  <HomeroomPicker
+                    classId={c.id}
+                    teachers={c.teachers}
+                    current={c.homeroomTeacherId}
+                  />
                 )}
 
                 <form action={assignTeacherAction} className="mt-3 flex gap-2">
