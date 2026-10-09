@@ -31,7 +31,15 @@ const SCHOOL_ID = sql.raw('"schools"."id"');
  */
 
 export type NewSchoolResult =
-  | { ok: true; schoolId: string; slug: string; phone: string; pin: string | null }
+  | {
+      ok: true;
+      schoolId: string;
+      /** Эрхлэгч — админы оруулсан лого, зураг түүний нэр дээр бүртгэгдэнэ. */
+      managerUserId: string;
+      slug: string;
+      phone: string;
+      pin: string | null;
+    }
   | { ok: false; reason: string };
 
 /** Нэрнээс slug санал болгоно. Кирилл үсгийг латинчилна. */
@@ -133,7 +141,7 @@ export async function createSchoolWithManager(
   // PIN hash нь удаан (scrypt) тул гүйлгээний гадна.
   if (pin) await setAdultCredentials(created.userId, pin);
 
-  return { ok: true, schoolId: created.schoolId, slug, phone, pin };
+  return { ok: true, schoolId: created.schoolId, managerUserId: created.userId, slug, phone, pin };
 }
 
 export type SchoolRow = {

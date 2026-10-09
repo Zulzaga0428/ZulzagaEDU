@@ -50,10 +50,11 @@ function ImagePick({
     setError(null);
     try {
       /*
-        Лого нь ихэвчлэн тунгалаг дэвсгэртэй PNG — JPEG болговол хар дэвсгэртэй
-        болно. Тиймээс логог эхээр нь, байрны зургийг багасгаж илгээнэ.
+        Хоёулаа багасгана — сервер 1MB-аас их хүлээж авахгүй. Лого нь тунгалаг
+        PNG хэвээр 512px, байрны зураг JPEG 1280px.
       */
-      const body = kind === "photo" ? await shrink(file) : file;
+      const body =
+        kind === "photo" ? await shrink(file) : await shrink(file, { maxEdge: 512, type: "image/png" });
       if (body.size > MAX_BYTES) {
         setError("Зураг хэт том байна (5MB хүртэл).");
         return;
@@ -62,8 +63,8 @@ function ImagePick({
       data.set("kind", kind);
       data.set(
         "photo",
-        new File([body], kind === "photo" ? "bair.jpg" : file.name, {
-          type: kind === "photo" && body !== file ? "image/jpeg" : file.type,
+        new File([body], kind === "photo" ? "bair.jpg" : "logo.png", {
+          type: body === file ? file.type : kind === "photo" ? "image/jpeg" : "image/png",
         }),
       );
       const res = await uploadSchoolImageAction(data);

@@ -4,6 +4,7 @@ import { AppShell } from "@/components/app-shell";
 import { Row, SectionLabel } from "@/components/ui";
 import { GraduationCap, School } from "lucide-react";
 import { schoolOverview } from "@/server/school/overview";
+import { schoolProfile } from "@/server/school/profile";
 
 export const dynamic = "force-dynamic";
 
@@ -18,7 +19,7 @@ export default async function ManagerHome() {
   if (!viewer) redirect("/login");
   if (viewer.role !== "ACADEMIC_MANAGER") redirect("/");
 
-  const o = await schoolOverview(viewer);
+  const [o, school] = await Promise.all([schoolOverview(viewer), schoolProfile(viewer.schoolId)]);
 
   const stats = [
     { label: "Багш", value: o.teachers },
@@ -31,8 +32,12 @@ export default async function ManagerHome() {
     <AppShell
       viewer={viewer}
       eyebrow="Эрхлэгчийн орон зай"
-      title="Сургуулийн тойм"
-      subtitle="Аль ангид дэмжлэг хэрэгтэйг долоо хоног бүр харна."
+      /*
+        Эрхлэгч орохдоо ӨӨРИЙН сургуулиа харна (Zulzaga, 2026-10-10): «1-р
+        сургууль» гэж том гарчгаар, лого нь толгойд. Админ үүсгэхдээ оруулсан.
+      */
+      title={school?.name ?? "Сургуулийн тойм"}
+      subtitle="Сургуулийн тойм — аль ангид дэмжлэг хэрэгтэйг долоо хоног бүр харна."
       wide
     >
       <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">

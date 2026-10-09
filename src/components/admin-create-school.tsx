@@ -1,8 +1,9 @@
 "use client";
 
-import { useActionState, useState } from "react";
-import { Check, Copy, Plus } from "lucide-react";
+import { startTransition, useActionState, useState } from "react";
+import { Check, Copy, ImagePlus, Plus } from "lucide-react";
 import { createSchoolAction } from "@/app/admin/actions";
+import { shrink } from "@/components/photo-upload";
 
 /**
  * Сургууль үүсгэх маягт.
@@ -25,6 +26,40 @@ export function CreateSchool() {
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [touchedSlug, setTouchedSlug] = useState(false);
+  /** Зураг багасгаж байх хугацаа — серверийн үйлдэл эхлэхээс өмнөх хэсэг. */
+  const [preparing, setPreparing] = useState(false);
+
+  /*
+    Сургууль мэдээллээ (лого, зураг, хаяг…) манайд илгээдэг — админ үүсгэхдээ
+    хамт оруулна, эрхлэгч нэвтрэхэд бэлэн харагдана (Zulzaga, 2026-10-10).
+    Зургийг илгээхээс ӨМНӨ багасгана: сервер нэг илгээлтэд 1MB-аас их хүлээж
+    авдаггүй. Лого тунгалаг PNG хэвээр.
+  */
+  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const data = new FormData(e.currentTarget);
+    setPreparing(true);
+    try {
+      for (const kind of ["logo", "photo"] as const) {
+        const f = data.get(kind);
+        if (!(f instanceof File) || f.size === 0) {
+          data.delete(kind);
+          continue;
+        }
+        const small =
+          kind === "logo" ? await shrink(f, { maxEdge: 512, type: "image/png" }) : await shrink(f);
+        data.set(
+          kind,
+          new File([small], kind === "logo" ? "logo.png" : "bair.jpg", {
+            type: small === f ? f.type : kind === "logo" ? "image/png" : "image/jpeg",
+          }),
+        );
+      }
+    } finally {
+      setPreparing(false);
+    }
+    startTransition(() => action(data));
+  }
 
   function onName(v: string) {
     setName(v);
@@ -71,6 +106,17 @@ export function CreateSchool() {
           </div>
         </dl>
 
+        {(result.logo || result.photo) && (
+          <p className="mt-3 text-xs font-bold text-dot-parent">
+            {[result.logo && "Лого ✓", result.photo && "Байрны зураг ✓"].filter(Boolean).join(" · ")}
+          </p>
+        )}
+        {result.note && (
+          <p className="mt-2 rounded-xl border border-warn-line bg-warn-bg px-3 py-2 text-xs font-bold text-ink">
+            {result.note}
+          </p>
+        )}
+
         {result.pin && (
           <p className="mt-3 rounded-xl border border-warn-line bg-warn-bg px-3 py-2 text-xs font-bold text-ink">
             ⚠️ PIN дахиж харагдахгүй. Эрхлэгчид яг одоо дамжуул.
@@ -97,7 +143,7 @@ export function CreateSchool() {
   }
 
   return (
-    <form action={action} className="space-y-4 rounded-3xl border border-line bg-surface p-5">
+    <form onSubmit={onSubmit} className="space-y-4 rounded-3xl border border-line bg-surface p-5">
       {result && !result.ok && (
         <p
           role="alert"
@@ -160,13 +206,86 @@ export function CreateSchool() {
         </span>
       </label>
 
+      <fieldset className="space-y-4 rounded-2xl border border-line p-4">
+        <legend className="px-1 text-sm font-bold text-ink">
+          Сургуулийн мэдээлэл <span className="font-normal text-ink-faint">— заавал биш</span>
+        </legend>
+        <p className="text-xs text-ink-faint">
+          Сургуулиас ирсэн мэдээллийг оруулбал эрхлэгч нэвтрэхэд бэлэн харагдана. Хоосон
+          үлдээвэл эрхлэгч дараа нь өөрөө бөглөнө.
+        </p>
+
+        <div className="grid grid-cols-2 gap-3">
+          {(
+            [
+              ["logo", "Лого"],
+              ["photo", "Байрны зураг"],
+            ] as const
+          ).map(([kind, label]) => (
+            <label
+              key={kind}
+              className="flex cursor-pointer flex-col items-center gap-1.5 rounded-xl border border-dashed border-line px-3 py-4 text-center text-xs font-bold text-ink-soft hover:border-brand"
+            >
+              <ImagePlus className="h-5 w-5 text-ink-faint" strokeWidth={2} />
+              {label}
+              <input
+                type="file"
+                name={kind}
+                accept="image/png,image/jpeg,image/webp"
+                className="w-full text-[10px] font-normal text-ink-faint file:hidden"
+              />
+            </label>
+          ))}
+        </div>
+
+        <label className="block">
+          <span className="text-sm font-bold text-ink">Хаяг</span>
+          <input
+            name="address"
+            maxLength={300}
+            placeholder="Баянзүрх дүүрэг, 8-р хороо…"
+            className="mt-1.5 w-full rounded-xl border border-line bg-surface px-4 py-3 text-ink placeholder:text-ink-faint"
+          />
+        </label>
+        <label className="block">
+          <span className="text-sm font-bold text-ink">Сургуулийн утас</span>
+          <input
+            name="schoolPhone"
+            inputMode="tel"
+            maxLength={60}
+            placeholder="7011 2233"
+            className="mt-1.5 w-full rounded-xl border border-line bg-surface px-4 py-3 text-ink placeholder:text-ink-faint"
+          />
+        </label>
+        <label className="block">
+          <span className="text-sm font-bold text-ink">Вэб сайт</span>
+          <input
+            name="website"
+            inputMode="url"
+            maxLength={300}
+            placeholder="www.school.edu.mn"
+            className="mt-1.5 w-full rounded-xl border border-line bg-surface px-4 py-3 text-ink placeholder:text-ink-faint"
+          />
+        </label>
+        <label className="block">
+          <span className="text-sm font-bold text-ink">Facebook / сошиал</span>
+          <input
+            name="facebook"
+            inputMode="url"
+            maxLength={300}
+            placeholder="facebook.com/manai.surguuli"
+            className="mt-1.5 w-full rounded-xl border border-line bg-surface px-4 py-3 text-ink placeholder:text-ink-faint"
+          />
+        </label>
+      </fieldset>
+
       <button
         type="submit"
-        disabled={pending}
+        disabled={pending || preparing}
         className="flex w-full items-center justify-center gap-2 rounded-2xl bg-brand px-4 py-4 text-lg font-extrabold text-brand-ink hover:bg-brand-strong disabled:opacity-50"
       >
         <Plus className="h-5 w-5" strokeWidth={3} />
-        {pending ? "Үүсгэж байна…" : "Сургууль үүсгэх"}
+        {preparing ? "Зураг бэлдэж байна…" : pending ? "Үүсгэж байна…" : "Сургууль үүсгэх"}
       </button>
     </form>
   );

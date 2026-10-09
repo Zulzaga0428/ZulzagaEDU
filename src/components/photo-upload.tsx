@@ -18,10 +18,22 @@ import { uploadNotebookPhoto } from "@/app/suragch/upload-actions";
 const MAX_EDGE = 1280;
 const QUALITY = 0.8;
 
-/** Сургуулийн байрны зураг ч үүнийг ашиглана (`school-profile-form.tsx`). */
-export async function shrink(file: File): Promise<Blob> {
+/**
+ * Зургийг хөтөч дээр жижигрүүлнэ. Сургуулийн байрны зураг, лого ч үүнийг
+ * ашиглана (`school-profile-form.tsx`, `admin-create-school.tsx`).
+ *
+ * ⚠️ Серверийн үйлдэл нэг илгээлтэд 1MB-аас их хүлээж авдаггүй (Next-ийн
+ * анхдагч). Тиймээс илгээх БҮХ зураг үүгээр дамжина. Лого нь тунгалаг PNG тул
+ * `type: "image/png"` — JPEG болговол хар дэвсгэртэй болно.
+ */
+export async function shrink(
+  file: File,
+  opts: { maxEdge?: number; type?: "image/jpeg" | "image/png" } = {},
+): Promise<Blob> {
+  const maxEdge = opts.maxEdge ?? MAX_EDGE;
+  const type = opts.type ?? "image/jpeg";
   const bitmap = await createImageBitmap(file);
-  const scale = Math.min(1, MAX_EDGE / Math.max(bitmap.width, bitmap.height));
+  const scale = Math.min(1, maxEdge / Math.max(bitmap.width, bitmap.height));
   const w = Math.round(bitmap.width * scale);
   const h = Math.round(bitmap.height * scale);
 
@@ -34,7 +46,7 @@ export async function shrink(file: File): Promise<Blob> {
   bitmap.close();
 
   const blob = await new Promise<Blob | null>((resolve) =>
-    canvas.toBlob(resolve, "image/jpeg", QUALITY),
+    canvas.toBlob(resolve, type, type === "image/jpeg" ? QUALITY : undefined),
   );
   // Жижигрүүлэлт ажиллаагүй эсвэл үр дүн нь томорсон бол эх файлаа илгээнэ.
   return blob && blob.size < file.size ? blob : file;

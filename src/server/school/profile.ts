@@ -115,6 +115,29 @@ export async function updateSchoolProfile(viewer: Viewer, input: ProfileInput): 
 }
 
 /**
+ * Админ сургууль үүсгэхдээ профайлыг хамт оруулна (Zulzaga, 2026-10-10):
+ * сургууль мэдээллээ манайд илгээдэг, эрхлэгч нэвтрэхэд бэлэн байх ёстой.
+ *
+ * `clean` нь `cleanProfile`-аар АЛЬ ХЭДИЙН шалгагдсан байх ёстой — сургууль
+ * үүсгэхээс өмнө, буруу холбоос хагас үүссэн сургууль үлдээхгүйн тулд.
+ */
+export async function setProfileByAdmin(
+  schoolId: string,
+  clean: ReturnType<typeof cleanProfile>,
+  who: string,
+): Promise<void> {
+  await db.update(schools).set(clean).where(eq(schools.id, schoolId));
+  await db.insert(auditLog).values({
+    schoolId,
+    actorUserId: null,
+    action: "SCHOOL_PROFILE_UPDATED",
+    targetType: "school",
+    targetId: schoolId,
+    meta: { via: "admin", who },
+  });
+}
+
+/**
  * Лого эсвэл байрны зургийг солино.
  *
  * Файл нь энэ сургуулийнх, ЭНЭ эрхлэгчийн өөрөө байршуулсан байх ёстой —
