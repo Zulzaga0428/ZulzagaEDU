@@ -119,6 +119,7 @@ import {
 import type { StudentHomeworkRow } from "../src/server/homework/service";
 import { myProfile, changeOwnPin } from "../src/server/profile/service";
 import { attachToHomework, homeworkFiles } from "../src/server/files/storage";
+import { schoolProfile, setSchoolImage, updateSchoolProfile } from "../src/server/school/profile";
 import {
   openThread,
   parentThreads,
@@ -1803,6 +1804,50 @@ async function main() {
     // Seed-ийн PIN-д буцааж үлдээнэ — дараагийн тест, гараар шалгалт эндүүрэхгүйн тулд.
     await changeOwnPin(s0, "5137", "2648");
     check("seed-ийн PIN сэргэв", (await signIn(prof.loginCode!, "2648")).ok);
+  }
+
+  console.log();
+  console.log("41. Сургуулийн профайл");
+  {
+    // Хоосон профайлаас эхэлнэ — өмнөх ажиллалтын үлдэгдэлд найдахгүй.
+    await db.update(schools).set({ address: null, phone: null, website: null, facebook: null, logoFileId: null, photoFileId: null }).where(eq(schools.id, school.id));
+
+    await updateSchoolProfile(asManager, {
+      address: "  Баянзүрх   дүүрэг, 8-р хороо ",
+      phone: "7011 2233",
+      website: "www.zulzaga-test.edu.mn",
+      facebook: "https://facebook.com/zulzaga.test",
+    });
+    const pr = await schoolProfile(school.id);
+    check("хаягийн илүү зай цэвэрлэгдэв", pr?.address === "Баянзүрх дүүрэг, 8-р хороо", pr?.address ?? "");
+    check("протоколгүй сайтад https нэмэгдэв", pr?.website === "https://www.zulzaga-test.edu.mn/", pr?.website ?? "");
+    check("утас хадгалагдав", pr?.phone === "7011 2233");
+
+    // ⚠️ Энэ холбоос бүх багш, эцэг эхэд <a href> болж харагдана.
+    await refuses("javascript: холбоос", () => updateSchoolProfile(asManager, { website: "javascript:alert(1)" }));
+    await refuses("data: холбоос", () => updateSchoolProfile(asManager, { facebook: "data:text/html,<script>1</script>" }));
+    await refuses("үсэгтэй утас", () => updateSchoolProfile(asManager, { phone: "залга" }));
+    const after = await schoolProfile(school.id);
+    check("татгалзсаны дараа хуучин сайт хэвээр", after?.website === "https://www.zulzaga-test.edu.mn/");
+
+    await refuses("багш профайл засах", () => updateSchoolProfile(asTeacher, { address: "x" }));
+    await refuses("сурагч профайл засах", () => updateSchoolProfile(s0, { address: "x" }));
+
+    // Лого: эрхлэгчийн өөрийн байршуулсан, ЭНЭ сургуулийн файл л болно.
+    const logo = await saveImage(asManager, png, "image/png");
+    await setSchoolImage(asManager, "logo", logo.id);
+    check("лого тавигдав", (await schoolProfile(school.id))?.logoFileId === logo.id);
+    check("багш логог харав", bytesOf(await readFileFor(asTeacher, logo.id)).length === png.length);
+    check("сурагч логог харав", bytesOf(await readFileFor(s0, logo.id)).length === png.length);
+
+    const notebook = await saveImage(s0, png, "image/png");
+    await refuses("хүүхдийн зургийг лого болгох", () => setSchoolImage(asManager, "logo", notebook.id));
+    await refuses("багш лого солих", () => setSchoolImage(asTeacher, "logo", logo.id));
+
+    // Буцааж цэвэрлэнэ.
+    await db.update(schools).set({ address: null, phone: null, website: null, facebook: null, logoFileId: null, photoFileId: null }).where(eq(schools.id, school.id));
+    await deleteFile(logo.id);
+    await deleteFile(notebook.id);
   }
 
   console.log(`\n${failed === 0 ? "✅" : "❌"} ${passed} зөв, ${failed} алдаа\n`);

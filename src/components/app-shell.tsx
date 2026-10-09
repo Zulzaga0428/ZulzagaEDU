@@ -51,7 +51,7 @@ export async function AppShell({
   // бүрд нэмэлт асуулга явуулах шалтгаан алга.
   const [[me], [school]] = await Promise.all([
     db.select({ name: users.name }).from(users).where(eq(users.id, viewer.userId)).limit(1),
-    db.select({ name: schools.name }).from(schools).where(eq(schools.id, viewer.schoolId)).limit(1),
+    db.select({ name: schools.name, logoFileId: schools.logoFileId }).from(schools).where(eq(schools.id, viewer.schoolId)).limit(1),
   ]);
 
   const initial = (me?.name ?? "?").trim().split(/\s+/).pop()?.[0] ?? "?";
@@ -71,6 +71,7 @@ export async function AppShell({
         lang={langEnabled()}
         points={pointsEnabled()}
         schoolName={school?.name ?? null}
+        logoFileId={school?.logoFileId ?? null}
         footer={
           <div className="flex items-center gap-2 px-1">
             <Link
@@ -180,12 +181,21 @@ export async function AppShell({
           */}
           <div className="flex items-center justify-between gap-3 lg:hidden">
             <span className="flex items-center gap-2">
-              <span
-                aria-hidden
-                className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand text-sm font-extrabold text-brand-ink"
-              >
-                Z
-              </span>
+              {school?.logoFileId ? (
+                // eslint-disable-next-line @next/next/no-img-element -- эрх шалгадаг замаар ирнэ
+                <img
+                  src={`/api/file/${school.logoFileId}`}
+                  alt=""
+                  className="h-9 w-9 rounded-xl border border-line bg-surface object-contain p-0.5"
+                />
+              ) : (
+                <span
+                  aria-hidden
+                  className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand text-sm font-extrabold text-brand-ink"
+                >
+                  Z
+                </span>
+              )}
               <span className="text-lg font-extrabold tracking-tight text-navy">zulzaga</span>
             </span>
   

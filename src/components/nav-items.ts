@@ -9,6 +9,7 @@ import {
   Plus,
   Star,
   User,
+  School,
   Users,
   type LucideIcon,
 } from "lucide-react";
@@ -119,6 +120,7 @@ export function sideItems(
   return [
     { href: "/erhlegch", label: "Нүүр", icon: Home },
     { href: "/erhlegch/bagsh", label: "Багш ба анги", icon: Users },
+    { href: "/erhlegch/surguuli", label: "Манай сургууль", icon: School },
     { href: "/profil", label: "Профайл", icon: User },
   ];
 }

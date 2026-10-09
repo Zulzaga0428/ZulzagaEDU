@@ -23,12 +23,15 @@ export function SideNav({
   lang = false,
   points = false,
   schoolName,
+  logoFileId,
   footer,
 }: {
   role: MembershipRole;
   lang?: boolean;
   points?: boolean;
   schoolName?: string | null;
+  /** Сургуулийн лого — байвал «Zulzaga EDU» дүрсний оронд (`/erhlegch/surguuli`). */
+  logoFileId?: string | null;
   /** Профайл, гарах — серверийн үйлдэл тул дээрээс дамжина. */
   footer?: React.ReactNode;
 }) {
@@ -42,9 +45,18 @@ export function SideNav({
       className="fixed inset-y-0 left-0 z-30 hidden w-60 flex-col border-r border-line bg-surface px-3 py-5 lg:flex"
     >
       <Link href={home} className="flex items-center gap-2 px-2">
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand text-brand-ink">
-          <GraduationCap className="h-5 w-5" strokeWidth={2.5} />
-        </span>
+        {logoFileId ? (
+          // eslint-disable-next-line @next/next/no-img-element -- эрх шалгадаг замаар ирнэ
+          <img
+            src={`/api/file/${logoFileId}`}
+            alt=""
+            className="h-9 w-9 shrink-0 rounded-xl border border-line bg-surface object-contain p-0.5"
+          />
+        ) : (
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand text-brand-ink">
+            <GraduationCap className="h-5 w-5" strokeWidth={2.5} />
+          </span>
+        )}
         <span className="min-w-0">
           <span className="block truncate text-sm font-extrabold leading-tight text-ink">
             Zulzaga EDU

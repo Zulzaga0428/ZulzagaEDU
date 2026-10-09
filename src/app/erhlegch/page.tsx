@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { getViewer } from "@/server/auth/access";
 import { AppShell } from "@/components/app-shell";
 import { Row, SectionLabel } from "@/components/ui";
-import { GraduationCap } from "lucide-react";
+import { GraduationCap, School } from "lucide-react";
 import { schoolOverview } from "@/server/school/overview";
 
 export const dynamic = "force-dynamic";
@@ -56,6 +56,14 @@ export default async function ManagerHome() {
           subtitle="Багш нэмэх, анги үүсгэх, хуваарилах"
           trailing={<span className="text-ink-faint">›</span>}
           href="/erhlegch/bagsh"
+        />
+        <Row
+          icon={School}
+          tint="цэнхэр"
+          title="Манай сургууль"
+          subtitle="Лого, хаяг, утас, вэб сайт, сошиал"
+          trailing={<span className="text-ink-faint">›</span>}
+          href="/erhlegch/surguuli"
         />
       </section>
 

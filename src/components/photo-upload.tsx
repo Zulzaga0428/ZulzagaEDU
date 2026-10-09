@@ -18,7 +18,8 @@ import { uploadNotebookPhoto } from "@/app/suragch/upload-actions";
 const MAX_EDGE = 1280;
 const QUALITY = 0.8;
 
-async function shrink(file: File): Promise<Blob> {
+/** Сургуулийн байрны зураг ч үүнийг ашиглана (`school-profile-form.tsx`). */
+export async function shrink(file: File): Promise<Blob> {
   const bitmap = await createImageBitmap(file);
   const scale = Math.min(1, MAX_EDGE / Math.max(bitmap.width, bitmap.height));
   const w = Math.round(bitmap.width * scale);

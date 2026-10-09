@@ -71,6 +71,13 @@
       "when": 1790954139803,
       "tag": "0009_leads",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1791534193221,
+      "tag": "0010_school_profile",
+      "breakpoints": true
     }
   ]
 }

@@ -18,6 +18,8 @@ import { myProfile } from "@/server/profile/service";
 import { signOut } from "@/app/login/actions";
 import { switchRole } from "@/app/actions";
 import { changePinAction } from "./actions";
+import { SchoolCard } from "@/components/school-card";
+import { schoolProfile } from "@/server/school/profile";
 
 export const dynamic = "force-dynamic";
 
@@ -44,6 +46,7 @@ export default async function ProfilePage({ searchParams }: PageProps<"/profil">
   if (!viewer) redirect("/login");
 
   const profile = await myProfile(viewer);
+  const school = await schoolProfile(viewer.schoolId);
   const { pin, aldaa } = await searchParams;
 
   const saved = pin === "solison";
@@ -84,6 +87,14 @@ export default async function ProfilePage({ searchParams }: PageProps<"/profil">
               ))}
             </div>
           )}
+        </section>
+      )}
+
+      {/* Сургуулийн профайл — эрхлэгч засна, бусад нь харна (2026-10-09). */}
+      {school && (
+        <section>
+          <SectionLabel>Манай сургууль</SectionLabel>
+          <SchoolCard profile={school} canEdit={viewer.role === "ACADEMIC_MANAGER"} />
         </section>
       )}
 

@@ -29,6 +29,7 @@ import {
   R2_SCHEME,
   signedUrl,
 } from "@/server/files/r2";
+import { isSchoolImage } from "@/server/school/profile";
 
 /**
  * Файлын хадгалалт.
@@ -167,6 +168,14 @@ async function canRead(viewer: Viewer, fileId: string): Promise<boolean> {
 
   // Байршуулсан хүн өөрөө үргэлж харна.
   if (row.uploaderId === viewer.userId) return true;
+
+  /*
+    Сургуулийн лого, байрны зураг — тэр сургуулийн БҮХ гишүүнд. Энэ шалгалтгүй
+    бол дүрэм доор «даалгаварт хавсрагдаагүй файлыг зөвхөн эзэн нь харна» гэж
+    унаж, эрхлэгчээс өөр хэн ч логог харахгүй. Сургууль хоорондын хана дээр
+    аль хэдийн шалгагдсан.
+  */
+  if (await isSchoolImage(viewer.schoolId, fileId)) return true;
 
   /*
     Багшийн самбарын зураг — ангийн БҮХ хүнд зориулагдсан. Сурагчийн
