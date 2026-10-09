@@ -35,7 +35,9 @@ export function CreateSchool() {
     if (!result?.ok) return;
     const text = [
       `${result.name}`,
-      `Хаяг: zulzagaedu.mn`,
+      // Хатуу бичихгүй — одоо нээгдсэн сайтын хаяг. Өмнө нь `zulzagaedu.mn`
+      // гэж бичигдсэн байсан нь ажиллахгүй хаяг байв (2026-10-09 зассан).
+      `Хаяг: ${window.location.origin}`,
       `Эрхлэгчийн дугаар: ${result.phone}`,
       result.pin ? `PIN: ${result.pin}` : "PIN: (хуучин дугаар — өмнөх PIN хэвээр)",
     ].join("\n");

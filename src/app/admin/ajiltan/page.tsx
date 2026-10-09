@@ -45,7 +45,21 @@ function QA({ q, children }: { q: string; children: React.ReactNode }) {
   );
 }
 
+/**
+ * Сайтын хаяг — бичиж хатуу тавихгүй. 2026-10-09 хүртэл энд `zulzagaedu.mn`
+ * гэж бичигдсэн байсан нь ажиллахгүй хаяг байв. `APP_URL`-аас авбал домэйн
+ * солигдоход ч өөрөө зөв болно.
+ */
+function siteHostOf(appUrl: string | undefined): string {
+  try {
+    return appUrl ? new URL(appUrl).host : "edu.zulzaga.app";
+  } catch {
+    return "edu.zulzaga.app";
+  }
+}
+
 export default async function FieldGuidePage() {
+  const siteHost = siteHostOf(process.env.APP_URL);
   const admin = await readAdminSession();
   if (!admin) redirect("/admin");
 
@@ -269,7 +283,7 @@ export default async function FieldGuidePage() {
           <li>☐ Багш ангитай юу?</li>
           <li>☐ <strong className="text-ink">Багш нэг даалгавар оруулсан уу?</strong></li>
           <li>☐ Багш «Шинэ даалгаврын мэдэгдэл авах» товчийг дарсан уу?</li>
-          <li>☐ Багшид <code className="font-mono">zulzagaedu.mn/tuslamj</code> хаягийг өгсөн үү?</li>
+          <li>☐ Багшид <code className="font-mono">{siteHost}/tuslamj</code> хаягийг өгсөн үү?</li>
         </ul>
       </section>
 
