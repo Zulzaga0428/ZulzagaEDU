@@ -74,10 +74,13 @@ export function parentHeadline(g: DueGroups): { text: string; tone: "сайн" |
  * Хүүхдэд хувь хэлэхгүй, тоо хэлнэ. Мөн хоцорсныг зэмлэхгүй — «өчигдрийнх»
  * гэдэг нь хангалттай тодорхой, гутаахгүй. 7 настай хүүхэд аппыг дайсан
  * гэж мэдэрвэл дахиж нээхгүй.
+ *
+ * `senior` (6–12-р анги) — эмодзигүй, эрхлүүлэхгүй, найз шиг энгийн
+ * (`school/stage.ts`). Тоо нь адилхан.
  */
-export function studentHeadline(g: DueGroups): string {
-  if (g.totalCount === 0) return "Даалгавар алга. Амарч байгаарай 🌿";
-  if (g.pendingCount === 0) return "Бүгдийг хийчихлээ 🎉";
+export function studentHeadline(g: DueGroups, senior = false): string {
+  if (g.totalCount === 0) return senior ? "Одоогоор даалгавар алга" : "Даалгавар алга. Амарч байгаарай 🌿";
+  if (g.pendingCount === 0) return senior ? "Бүх даалгавар хийгдсэн" : "Бүгдийг хийчихлээ 🎉";
   const now = g.overdue.length + g.today.length;
   if (now > 0) return `Одоо ${now} зүйл хийх байна`;
   return `Хийх ${g.pendingCount} зүйл байна`;

@@ -10,6 +10,7 @@ import { groupByDue } from "@/server/homework/grouping";
 import { formatDueUb } from "@/server/homework/time";
 import { myAttachments } from "@/server/files/storage";
 import { UndoButton } from "@/components/student-done-buttons";
+import { isSenior, studentGrade } from "@/server/school/stage";
 
 export const dynamic = "force-dynamic";
 
@@ -27,7 +28,8 @@ export default async function StudentHomeworkPage() {
   if (!viewer) redirect("/login");
   if (viewer.role !== "STUDENT") redirect("/");
 
-  const items = await myHomework(viewer);
+  const [items, grade] = await Promise.all([myHomework(viewer), studentGrade(viewer)]);
+  const senior = isSenior(grade);
   const g = groupByDue(items);
   const pending = [...g.overdue, ...g.today, ...g.upcoming];
   const finished = items.filter((h) => h.status !== "ASSIGNED");
@@ -61,7 +63,9 @@ export default async function StudentHomeworkPage() {
       </Link>
 
       {items.length === 0 && (
-        <Empty icon={NotebookPen}>Одоогоор даалгавар алга. Амарч байгаарай 🌿</Empty>
+        <Empty icon={NotebookPen}>
+          {senior ? "Одоогоор даалгавар алга." : "Одоогоор даалгавар алга. Амарч байгаарай 🌿"}
+        </Empty>
       )}
 
       {pending.length > 0 && (
@@ -74,6 +78,7 @@ export default async function StudentHomeworkPage() {
                 h={h}
                 when={formatDueUb(h.dueAt)}
                 photos={photoMap.get(h.id) ?? []}
+                senior={senior}
               />
             ))}
           </div>

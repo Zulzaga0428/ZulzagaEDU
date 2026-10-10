@@ -45,6 +45,7 @@ import {
 import { endOfDayUb, todayUb, addDaysUb } from "../src/server/homework/time";
 import { groupByDue, parentHeadline, studentHeadline } from "../src/server/homework/grouping";
 import { schoolOverview } from "../src/server/school/overview";
+import { isSenior } from "../src/server/school/stage";
 import {
   notifyGuardianPending,
   notifyThreadMessage,
@@ -359,6 +360,12 @@ async function main() {
   check("сурагчид одоо хийх тоог хэлнэ", studentHeadline(g) === "Одоо 2 зүйл хийх байна",
     studentHeadline(g));
   check("бүгд дууссаныг баярлуулна", studentHeadline(allDone).includes("🎉"));
+  // 6–12-р анги: тоо адил, эмодзи ба эрхлүүлэл алга (`school/stage.ts`).
+  check("ахлах ангид эмодзигүй", !/[🎉🌿]/u.test(studentHeadline(allDone, true) + studentHeadline(groupByDue([]), true)));
+  check("ахлах ангид тоо адил", studentHeadline(g, true) === studentHeadline(g));
+  check("5-р анги бага анги", !isSenior(5));
+  check("6-р анги ахлах анги", isSenior(6) && isSenior(12));
+  check("ангигүй бол бага анги", !isSenior(null));
 
   console.log();
   console.log("14. Эрхлэгчийн тойм");

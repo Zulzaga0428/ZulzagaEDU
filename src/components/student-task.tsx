@@ -24,24 +24,37 @@ export function StudentTask({
   h,
   when,
   photos,
+  senior = false,
 }: {
   h: StudentHomeworkRow;
   when: string;
   photos: string[];
+  /** 6–12-р анги: дүрсгүй, хичээлийн нэр дээр нь тод (`school/stage.ts`). */
+  senior?: boolean;
 }) {
   const { icon, tint } = subjectIcon(h.subject);
 
   return (
     <Card>
-      <div className="flex items-start gap-3">
-        <IconBox icon={icon} tint={tint} size="том" />
-        <div className="min-w-0 flex-1">
-          <p className="text-lg font-extrabold leading-tight text-ink">{h.title}</p>
-          <p className="text-xs text-ink-faint">
-            {h.subject ?? "Хичээл"} · {when}
+      {senior ? (
+        // Олон хичээлтэй том хүүхэд эхлээд «аль хичээлийнх вэ» гэж хардаг.
+        <div className="min-w-0">
+          <p className="text-xs font-bold uppercase tracking-wider text-brand">
+            {h.subject ?? "Хичээл"} <span className="font-semibold normal-case tracking-normal text-ink-faint">· {when}</span>
           </p>
+          <p className="mt-0.5 text-base font-bold leading-snug text-ink">{h.title}</p>
         </div>
-      </div>
+      ) : (
+        <div className="flex items-start gap-3">
+          <IconBox icon={icon} tint={tint} size="том" />
+          <div className="min-w-0 flex-1">
+            <p className="text-lg font-extrabold leading-tight text-ink">{h.title}</p>
+            <p className="text-xs text-ink-faint">
+              {h.subject ?? "Хичээл"} · {when}
+            </p>
+          </div>
+        </div>
+      )}
 
       {h.boardPhotos.length > 0 && (
         <div className="mt-3 space-y-2">

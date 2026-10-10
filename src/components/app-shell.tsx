@@ -44,8 +44,11 @@ export async function AppShell({
   subtitle?: string;
   children: React.ReactNode;
   wide?: boolean;
-  /** Өгвөл өнгөт толгой: аватар + гурван тоо. */
-  hero?: { avatar: React.ReactNode; stats: HeroStat[] };
+  /**
+   * Өгвөл өнгөт толгой: аватар + гурван тоо. `calm` — 6–12-р ангид нил
+   * ягаан градиентийн оронд нэг тайван өнгө (`school/stage.ts`).
+   */
+  hero?: { avatar: React.ReactNode; stats: HeroStat[]; calm?: boolean };
 }) {
   // Дүрийн жагсаалтыг энд уншихаа больсон — профайл өөрөө уншина. Дэлгэц
   // бүрд нэмэлт асуулга явуулах шалтгаан алга.
@@ -118,11 +121,17 @@ export async function AppShell({
           Токеноор бичсэн: өнгө солиход энэ ч дагана.
         */
         <header
-          className="rounded-3xl p-5 text-white shadow-[0_10px_24px_rgba(43,133,246,0.25)]"
-          style={{
-            backgroundImage:
-              "linear-gradient(110deg, var(--brand) 0%, var(--dot-student) 100%)",
-          }}
+          className={`rounded-3xl p-5 text-white ${
+            hero.calm ? "" : "shadow-[0_10px_24px_rgba(43,133,246,0.25)]"
+          }`}
+          style={
+            hero.calm
+              ? { backgroundColor: "var(--navy)" }
+              : {
+                  backgroundImage:
+                    "linear-gradient(110deg, var(--brand) 0%, var(--dot-student) 100%)",
+                }
+          }
         >
           {/*
             ⚠️ Компьютер дээр энэ мөр БҮХЭЛДЭЭ нуугдана — лого, сургууль,

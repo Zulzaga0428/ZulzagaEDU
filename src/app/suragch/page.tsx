@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { and, eq } from "drizzle-orm";
-import { BookOpen, CalendarDays, Megaphone, NotebookPen, PartyPopper, Sparkles } from "lucide-react";
+import { BookOpen, CalendarDays, CircleCheck, ListTodo, Megaphone, NotebookPen, PartyPopper, Sparkles } from "lucide-react";
 import { db } from "@/server/db";
 import { classMembers, classes, users } from "@/server/db/schema";
 import { getViewer } from "@/server/auth/access";
@@ -19,11 +19,15 @@ import { myAttachments } from "@/server/files/storage";
 import { myPoints, pointsEnabled } from "@/server/points/service";
 import { selectedAvatar } from "@/server/points/avatars";
 import { Avatar } from "@/components/avatars";
+import { isSenior } from "@/server/school/stage";
 
 export const dynamic = "force-dynamic";
 
 /**
  * Сурагчийн нүүр — 1–5 ангийн хүүхдэд.
+ *
+ * 6–12-р анги ижил хуудсыг тайван хувилбараар нь харна (`school/stage.ts`):
+ * эмодзигүй, өнгөт картгүй, хичээлийн нэр тод. Үйлдэл нь яг адилхан.
  *
  *   · хувь биш, тоо — «78%» гэдгийг 7 настай ойлгохгүй
  *   · хоцорсныг зэмлэхгүй — улаан анхааруулга байхгүй
@@ -39,7 +43,7 @@ export default async function StudentHome() {
   const [[me], [myClass], items] = await Promise.all([
     db.select({ name: users.name }).from(users).where(eq(users.id, viewer.userId)).limit(1),
     db
-      .select({ name: classes.name })
+      .select({ name: classes.name, grade: classes.grade })
       .from(classes)
       .innerJoin(classMembers, eq(classMembers.classId, classes.id))
       .where(
@@ -87,6 +91,7 @@ export default async function StudentHome() {
       )
     ).filter((id): id is string => id !== null),
   );
+  const senior = isSenior(myClass?.grade);
   const firstName = (me?.name ?? "").trim().split(/\s+/).pop() ?? "";
   const pct = g.totalCount === 0 ? 0 : Math.round((g.doneCount / g.totalCount) * 100);
 
@@ -97,6 +102,7 @@ export default async function StudentHome() {
       subtitle={myClass?.name ? `${myClass.name} анги` : "Ангид ороогүй"}
       hero={{
         avatar: <Avatar id={myAvatar} size={60} />,
+        calm: senior,
         stats: [
           // Оноо нь тугийн ард. Унтраалттай бол зүгээр л энэ нүд гарахгүй.
           ...(points !== null ? [{ value: String(points), label: "Оноо" }] : []),
@@ -105,14 +111,25 @@ export default async function StudentHome() {
         ],
       }}
     >
-      <FeatureCard
-        icon={g.pendingCount === 0 ? PartyPopper : Sparkles}
-        tint={g.pendingCount === 0 ? "ногоон" : "цэнхэр"}
-        eyebrow="Өнөөдөр"
-        title={studentHeadline(g)}
-      >
-        {g.totalCount === 0 ? "Багш даалгавар өгөөгүй байна." : "Жижиг алхам бүр чинь ахиц юм."}
-      </FeatureCard>
+      {senior ? (
+        <FeatureCard
+          icon={g.pendingCount === 0 ? CircleCheck : ListTodo}
+          tint="саарал"
+          eyebrow="Өнөөдөр"
+          title={studentHeadline(g, true)}
+        >
+          {g.totalCount === 0 ? "Багш даалгавар өгөхөөр энд гарна." : null}
+        </FeatureCard>
+      ) : (
+        <FeatureCard
+          icon={g.pendingCount === 0 ? PartyPopper : Sparkles}
+          tint={g.pendingCount === 0 ? "ногоон" : "цэнхэр"}
+          eyebrow="Өнөөдөр"
+          title={studentHeadline(g)}
+        >
+          {g.totalCount === 0 ? "Багш даалгавар өгөөгүй байна." : "Жижиг алхам бүр чинь ахиц юм."}
+        </FeatureCard>
+      )}
 
       {/*
         Хуваарь, даалгавар доод nav-аас гарсан (Zulzaga, 2026-10-06) тул
@@ -156,10 +173,10 @@ export default async function StudentHome() {
           <SectionLabel>Одоо хийх</SectionLabel>
           <div className="space-y-3">
             {g.overdue.map((h) => (
-              <StudentTask key={h.id} h={h} when={`${formatDueUb(h.dueAt)} хүртэл байсан`} photos={photoMap.get(h.id) ?? []} />
+              <StudentTask key={h.id} h={h} when={`${formatDueUb(h.dueAt)} хүртэл байсан`} photos={photoMap.get(h.id) ?? []} senior={senior} />
             ))}
             {g.today.map((h) => (
-              <StudentTask key={h.id} h={h} when="өнөөдөр хүртэл" photos={photoMap.get(h.id) ?? []} />
+              <StudentTask key={h.id} h={h} when="өнөөдөр хүртэл" photos={photoMap.get(h.id) ?? []} senior={senior} />
             ))}
           </div>
         </section>
@@ -170,13 +187,14 @@ export default async function StudentHome() {
           <SectionLabel>Дараа</SectionLabel>
           <div className="space-y-3">
             {g.upcoming.map((h) => (
-              <StudentTask key={h.id} h={h} when={`${formatDueUb(h.dueAt)} хүртэл`} photos={photoMap.get(h.id) ?? []} />
+              <StudentTask key={h.id} h={h} when={`${formatDueUb(h.dueAt)} хүртэл`} photos={photoMap.get(h.id) ?? []} senior={senior} />
             ))}
           </div>
         </section>
       )}
 
-      {g.totalCount === 0 && <Empty icon={BookOpen}>Даалгавар алга. Амарч байгаарай 🌿</Empty>}
+      {/* Ахлах ангид дээд карт аль хэдийн «даалгавар алга» гэсэн — давтахгүй. */}
+      {g.totalCount === 0 && !senior && <Empty icon={BookOpen}>Даалгавар алга. Амарч байгаарай 🌿</Empty>}
 
       {notices.length > 0 && (
         <section>
